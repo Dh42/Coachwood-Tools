@@ -11,7 +11,7 @@ Internal tools for Coachwood Group, served at https://tools.coachwoodgroup.com. 
 
 ## Local setup
 
-Requirements: PHP 8.4 with `pdo_mysql` and `pdo_sqlite`, Composer, Node 22 with npm.
+Requirements: PHP 8.4 with `pdo_mysql` and `pdo_sqlite`, Composer, Node 22 or later with npm. The server builds with Node 26.
 
 ```bash
 composer install
@@ -67,18 +67,42 @@ Plesk pulls `main` into `/var/www/vhosts/tools.coachwoodgroup.com/httpdocs`. The
    /opt/plesk/php/8.4/bin/php /var/www/vhosts/tools.coachwoodgroup.com/httpdocs/artisan schedule:run
    ```
 
-**Deploy actions** (Plesk > Git > Additional deployment actions). Use the same Composer path as the old site:
+**Deploy actions** (Plesk > Git > Additional deployment actions), one per line. These follow the old site's actions, with PHP 8.4 in place of 8.3:
 
 ```bash
-/opt/plesk/php/8.4/bin/php <path-to-composer.phar> install --no-dev --optimize-autoloader --no-interaction
-npm ci && npm run build
-/opt/plesk/php/8.4/bin/php artisan migrate --force
-/opt/plesk/php/8.4/bin/php artisan optimize
+export PATH="/opt/plesk/node/26/bin:/opt/plesk/php/8.4/bin:$PATH" && php /opt/psa/var/modules/composer/composer.phar install --no-dev --optimize-autoloader --no-interaction
+export PATH="/opt/plesk/node/26/bin:/opt/plesk/php/8.4/bin:$PATH" && npm ci
+export PATH="/opt/plesk/node/26/bin:/opt/plesk/php/8.4/bin:$PATH" && npm run build
+export PATH="/opt/plesk/node/26/bin:/opt/plesk/php/8.4/bin:$PATH" && php artisan migrate --force
+export PATH="/opt/plesk/node/26/bin:/opt/plesk/php/8.4/bin:$PATH" && php artisan storage:link
+export PATH="/opt/plesk/node/26/bin:/opt/plesk/php/8.4/bin:$PATH" && php artisan optimize
 ```
 
 `artisan optimize` caches config. After editing `.env` on the server, run `php artisan optimize` again, or deploy.
 
 Migrations run on every deploy. A migration must never call an outside API or run a heavy backfill. Those go in Artisan commands that Lesley starts on the server.
+
+## One-time commands
+
+### `amazon:probe` (Phase 0)
+
+The probe is a read-only check of what the Amazon account can call. It tries 25 capabilities once each: reports, Data Kiosk field groups, Finance Remittance, Vendor Orders per vendor code, and seller offers on Amazon.ca. The results go into the `amazon_capabilities` table, which later code checks before relying on an endpoint or field.
+
+```bash
+php artisan amazon:probe --list                       # what it will try; calls nothing
+nohup php artisan amazon:probe --asin=<one Amazon.ca ASIN> --no-interaction > storage/logs/probe.log 2>&1 &
+php artisan amazon:probe --only=report.traffic        # re-run one capability
+```
+
+**Safety:**
+- `App\Amazon\Probe\ProbeClient` refuses any write before a request is sent.
+- The only POSTs it allows create a report or a Data Kiosk query.
+
+**Run time:** up to about 45 minutes. Run it on a weekday between 10:00 and 22:00 UTC, when the old app's SP-API tasks are quiet. Those tasks run 03:00–08:00 UTC daily, plus Sunday from 00:00. `nohup` keeps it running if SSH drops.
+
+**Results:**
+- **Summary,** safe to share: `storage/app/private/probe/summary.json`. It holds statuses, error codes, which fields came back and how often they are empty, and the ranges of rate fields. It contains no ASINs, amounts, IDs or credentials.
+- **Raw responses** are in `storage/app/private/probe/raw/`. They stay on the server and are deleted after Phase 1.
 
 ## Documents
 

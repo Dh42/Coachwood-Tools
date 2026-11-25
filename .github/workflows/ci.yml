@@ -32,7 +32,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # Matches the server's Plesk Node (/opt/plesk/node/26).
+          node-version: '26'
           cache: npm
       - run: npm ci
       - run: npm run build

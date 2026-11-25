@@ -7,6 +7,49 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-25: step 2, Amazon capability probe
+
+### What changed
+Branch `phase-0/amazon-probe`:
+- **Ported unchanged** from the old app:
+  - `App\Services\Amazon\SpApiClient`
+  - `App\Services\AmazonListings\ListingChannel`
+  - the `sp_api` config block, plus `vendor_codes` (D9)
+  - `SpApiClientTest`, which passes all 12 tests unchanged, including with `Http::preventStrayRequests()` on
+- **New registry:** the `amazon_capabilities` table and the `AmazonCapability` model, with `isUsable()` and `fieldReturned()` for later collectors.
+- **The `amazon:probe` command** (`app/Amazon/Probe/`) tries 25 capabilities: 11 reports, 9 Data Kiosk field groups, Finance Remittance headers and detail, Vendor Orders per vendor code, seller marketplace participations, and seller offers on Amazon.ca. It:
+  - submits everything first, then polls every 30 s for up to 45 min
+  - resubmits a Data Kiosk query once without the fields Amazon rejected
+  - retries once after a 429
+- **Read-only by construction.** `ProbeClient` refuses every non-GET except creating a report or a Data Kiosk query, before anything is sent. A test proves `patchListing()` sends nothing.
+- **Output rules.** The summary describes fields without values:
+  - type, how often empty or zero, and whether any are negative
+  - ranges only for rate-like fields, and dates
+  - counts per value only for currency, vendor code and marketplace
+  - Amazon error messages masked for ASINs, long IDs and the `--asin` value
+
+### Test status
+40 tests, 126 assertions, all passing on SQLite and on local MariaDB 10.11.14 (parallel). Pint clean. The probe has not run against Amazon yet.
+
+### From docs (Amazon's public models, read 2026-11-25), not yet verified on this account
+- Data Kiosk field names come from `schemas/data-kiosk/analytics_vendorAnalytics_2024_09_30.graphql`. It explains the old app's 2026-08-27 failure: `procurableProductOOS` exists, but in the `Sourcing` group, not `ProductAvailability`, where the old query asked for it. The probe requests it under `sourcing`.
+- The schema has `groupByKey.vendorCode`, which is how the probe checks both vendor codes.
+- `ProductAvailability` also has `sellableInTransitInventory` and `unhealthyInventory`.
+- Report options and row fields come from `schemas/reports/*.json`. The inventory report has `openPurchaseOrderUnits`, `aged90PlusDaysSellableInventoryUnits`, `unhealthyInventoryUnits`, `vendorConfirmationRate` and `averageVendorLeadTimeDays`.
+- The Finance Remittance API exists as `financeRemittance-2026-03-17`, with `getRemittanceHeaders` and `getRemittance`.
+
+### Assumed
+- Vendor reports lag about three days, so the probe's weekly window ends on the last Saturday at least three days back.
+- The real-time report options (`currencyCode` for sales, none for inventory and traffic) follow the schemas. A wrong option shows up as `fail` with Amazon's message.
+
+### Old app's SP-API schedule (from the local restore, UTC)
+- **Daily:** `amazon:vendor-sales-sync` 04:00, `stock-forecast:run` 05:00, `po:snapshot` 06:00, `listings:audit-run` 08:00.
+- **Sunday:** `geo`, `mkt`, `nrp`, `vc-traffic` and `cdq` run from 00:00 to 05:15.
+- So the probe should run on a weekday between 10:00 and 22:00 UTC.
+
+### Next step
+Merge, deploy, then Lesley runs the probe on the server and sends back `summary.json`.
+
 ## 2026-11-25: step 1, skeleton
 
 ### What changed
@@ -31,8 +74,9 @@ Pint is clean and `npm run build` succeeds.
 - On the local restore, the `tools_legacy_ro` user (`SELECT` on `tools_db`) gets error 1142 when it tries `CREATE TABLE`. **Verified locally.** The same grant must be set on the server.
 - CI has not run yet. It runs when the branch is pushed.
 
-### Assumed
-- The Plesk deploy actions in `README.md` need the server's Composer path. Lesley to copy it from the old site's actions.
+### From Lesley
+- The old site's Plesk deploy actions run in this order: Composer install, `npm ci`, `npm run build`, `migrate --force`, `storage:link`, `optimize`. Each one first puts `/opt/plesk/node/26/bin` and `/opt/plesk/php/8.3/bin` on PATH.
+- `README.md` copies them for the new site with PHP 8.4 in place of 8.3. CI builds with Node 26 to match the server.
 
 ### Next step
 Lesley prepares the server (README "Deploying") and merges. The first deploy proves the pipeline. Then step 2: `amazon:probe`.

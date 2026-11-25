@@ -35,4 +35,20 @@ return [
         ],
     ],
 
+    // Amazon Selling Partner API. Ported from the old app's config/services.php
+    // unchanged, plus vendor_codes (decision D9: Z3091 BioSteel and GQ8J9
+    // Canadian Protein, both under the same Vendor Central authorization).
+    'sp_api' => [
+        'base_url' => env('SP_API_BASE_URL', 'https://sellingpartnerapi-na.amazon.com'),
+        'client_id' => env('SP_API_CLIENT_ID'),
+        'client_secret' => env('SP_API_CLIENT_SECRET'),
+        'vendor_refresh_token' => env('SP_API_VENDOR_REFRESH_TOKEN'),
+        'vendor_code' => env('SP_API_VENDOR_CODE'),
+        'vendor_codes' => array_values(array_filter(array_map('trim', explode(',', (string) env('SP_API_VENDOR_CODES', ''))))),
+        'vendor_marketplace_id' => env('SP_API_VENDOR_MARKETPLACE_ID', 'A2EUQ1WTGCTBG2'), // amazon.ca
+        'seller_refresh_token' => env('SP_API_SELLER_REFRESH_TOKEN'),
+        'seller_id' => env('SP_API_SELLER_ID'),
+        'seller_marketplace_id' => env('SP_API_SELLER_MARKETPLACE_ID', 'ATVPDKIKX0DER'), // amazon.com (US)
+    ],
+
 ];

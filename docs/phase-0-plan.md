@@ -85,12 +85,12 @@ Not imported:
 
 The probe goes in the new app, as decided. It needs only the ported `SpApiClient`, so it ships in the first deploy.
 
-- **What it is:** `amazon:probe`, read-only. It makes about 22 report or query submissions, each made once, plus their status polls.
+- **What it is:** `amazon:probe`, read-only. It tries 25 capabilities once each (11 reports, 9 Data Kiosk queries, 5 synchronous calls), plus their status polls. `php artisan amazon:probe --list` shows them.
 - **How it runs:** it submits everything first, then polls together every 30 seconds, for up to 45 minutes in total. It never retries in a loop.
 - **What it covers:** the spec section 8 table, plus:
   - both vendor codes, Z3091 and GQ8J9
   - offer lookups on Amazon.ca with the seller token (decision D8)
-- **Data Kiosk fields:** these are tested one query per field group. A rejected field is then retried alone, so one bad field cannot hide the others.
+- **Data Kiosk fields:** these are tested one query per field group. Amazon names every rejected field in one validation error, so a rejected query is resubmitted once without those fields, and the rest still get tested.
 - **Results:**
   - The `amazon_capabilities` table in the new database.
   - `storage/app/private/probe/summary.json`, which is what Lesley sends back. It holds pass or fail, HTTP and error codes, fields requested and returned, empty-value rate, row count, and field type and range. It holds no ASINs and no amounts.
