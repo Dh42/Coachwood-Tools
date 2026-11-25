@@ -56,6 +56,8 @@ No test may make a live call. `Tests\TestCase` calls `Http::preventStrayRequests
 
 CI (`.github/workflows/ci.yml`) runs Pint, the Vite build, and the suite on SQLite and on MariaDB 10.11.14.
 
+**Auto-merge.** `.github/workflows/auto-merge.yml` merges a pull request into `main`, and so deploys it, once CI passes on its latest commit. It also deletes the branch. To stop one merging, open it as a draft or add the `hold` label. A merge made this way does not re-run CI on `main`, because GitHub does not start workflows from its own token. The Plesk webhook still fires.
+
 ## Deploying
 
 Plesk pulls `main` into `/var/www/vhosts/tools.coachwoodgroup.com/httpdocs`. The document root is `httpdocs/public`.
