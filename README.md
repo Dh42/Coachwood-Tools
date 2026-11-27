@@ -6,7 +6,7 @@ Internal tools for Coachwood Group, served at https://tools.coachwoodgroup.com. 
 
 - Laravel 13 on PHP 8.4
 - MariaDB 10.11 (production); SQLite in tests
-- Blade and Vite
+- Blade and Vite, with Tailwind CSS 4 and Chart.js
 - PHPUnit 12 with ParaTest
 
 ## Local setup
@@ -74,6 +74,21 @@ A failing run merges nothing. Fix it and push again.
 Never push to `main` directly. Plesk deploys `main` whether or not CI passed.
 
 A merge made this way doesn't re-run CI on `main`, because GitHub doesn't start workflows from its own token. The Plesk webhook still fires.
+
+## Front end
+
+The page shell and themes come from the Claude Design canvas "Coachwood Tools Redesign".
+- **Tokens:** `resources/css/tokens.css` is the only place with literal colours, sizes and fonts. It holds four themes: Midnight (default), Graphite, Daylight and Evergreen. `tests/Unit/View/TokensOnlyTest.php` fails if a view hard-codes a colour or pixel size.
+- **Styles:** `resources/css/app.css` holds the component classes (`.btn`, `.card`, `.tone-*`, `.table` and so on) and maps the tokens to Tailwind utilities (`bg-surface`, `text-muted`).
+- **Layouts:** `<x-layouts.app>` (sidebar and page header) and `<x-layouts.guest>` (sign-in and errors).
+- **Shared components** in `resources/views/components`:
+  - page header, card, stat row and stat tile, status badge, freshness badge
+  - notice, empty state, data state (loading, empty, error, partial, complete)
+  - filter bar, tabs, data table with `x-th`, modal, toasts
+  - chart card, incident card, tool tile, icon
+- **Gallery:** run `php artisan serve` and open `/dev/components` to see every component with made-up values. The route exists only in the local and testing environments.
+- **Theme and text size** are plain cookies (`theme`, `font_size`), so the first response renders the right theme. Changing the theme fires `theme-changed` on `document`.
+- **Charts:** use `window.themedChart(canvas, config)`. It colours datasets from the six-colour series palette and recolours them when the theme changes. `chartTheme()`, `seriesColor(i)` and `onThemeChange(fn)` are also global.
 
 ## Deploying
 

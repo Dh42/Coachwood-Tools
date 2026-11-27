@@ -7,6 +7,61 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-27: step 3a, page shell and design tokens
+
+### What changed
+Branch `phase-0/platform-shell`. Slice 3a of the platform (plan section 3).
+- **Tokens:** `resources/css/tokens.css` holds the type scale, spacing, sizes, radii, elevation and four themes, taken from the Claude Design canvas "Coachwood Tools Redesign" (Themes and Home artboards):
+  - Midnight (default), Graphite, Daylight, Evergreen
+  - each theme sets `color-scheme`, so charts and native controls know if it's light or dark
+- **Chart palette:** not in the design. I added a six-colour series palette based on Okabe-Ito, which stays distinguishable for colour-blind users, adjusted per theme.
+- **Tailwind CSS 4** through `@tailwindcss/vite`. The canvas is titled "Laravel + Tailwind", and decision D6 is Blade and Vite with the design's layout. Component classes are in `resources/css/app.css`; the tokens are mapped to Tailwind utilities.
+- **Layouts:**
+  - `<x-layouts.app>`: the design's sidebar with brand, grouped navigation, theme swatches, text size and user chip. Below 56rem it collapses to a top bar with a menu button.
+  - `<x-layouts.guest>`: for sign-in and errors.
+  - Both include a skip link.
+- **Navigation:** `App\View\Navigation` has only Home until the tools registry (3d).
+- **Theme and text size:**
+  - Stored in plain cookies (`theme`, `font_size`), excluded from cookie encryption, so the first response has the right theme. The old app kept the theme in localStorage and font size in a cookie.
+  - Changing the theme dispatches `theme-changed`, as before, with `detail.theme` and `detail.scheme`.
+  - 3b adds a per-user theme, as the design asks.
+- **Components (spec section 15):**
+  - page header, card, stat row and tile, status badge, freshness badge
+  - notice, empty state, data state (the five states), filter bar, tabs
+  - data table and `x-th`: sort, filter, CSV export, copy ASINs
+  - modal (native dialog), toasts (including session flashes)
+  - chart card, incident card, tool tile, icon
+- **Chart helper:** `resources/js/chart-theme.js`. `themedChart()` colours and recolours charts from the tokens. The old app built a palette on each chart page.
+- **500 page:** ported with its wording unchanged, on the guest layout. The old `ErrorPageTest` is carried over unchanged and passes.
+- **Home** (`/`): the new shell with an empty state until 3b and 3d.
+- **Gallery:** `/dev/components` shows every component with made-up values. Local and testing only.
+- **Tests:** `Tests\TestCase` calls `withoutVite()`, because CI's test jobs don't build assets.
+
+### Test status
+71 tests, 317 assertions, passing on SQLite (parallel). Pint clean. `npm run build` passes.
+
+New tests:
+- `ShellTest`: theme and text-size cookies, fallbacks, the gallery, flash toasts
+- `ComponentsTest`: badge labels, No data instead of zero, freshness, the five states, tabs, table tools, icon accessibility
+- `TokensOnlyTest`: no hard-coded colours or pixel sizes in views or `app.css`
+
+### Verified
+- **Locally, in headless Chrome:**
+  - the gallery in Midnight and Daylight at 1440px
+  - the home page at 390px, where the sidebar collapses to the top bar
+  - the chart draws with the series palette
+- **Not verified:** theme switching and the `theme-changed` recolour in a real browser, and the modal, toast, copy and CSV buttons. They aren't covered by PHP tests.
+
+### Decided by default (Lesley to confirm)
+- Tailwind CSS 4 for utilities, as the design's title says.
+- Fonts (Inter and JetBrains Mono) from fonts.bunny.net, as the old app loaded its font.
+- The six-colour chart palette above.
+- The ⌘K search in the design waits for the tools registry (3d).
+
+### Next step
+- Lesley pushes the branch; it should merge itself, which is the first live test of merge-on-push.
+- Then 3b: users, password login, profile, roles and Spatie permissions (26 old tests).
+
 ## 2026-11-27: history grab run, traffic re-run
 
 ### What changed
