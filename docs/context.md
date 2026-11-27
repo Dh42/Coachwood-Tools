@@ -7,6 +7,38 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-30: step 5, Walmart US Listing Auditor
+
+### Step 4 on the server (reported by Lesley)
+- The App Stats settings are in place. For `GOOGLE_TEAM_APP_STATS_KEY_FILE`, Lesley asked whether the sign-in client ID and secret would do; they won't (a service account is needed), so the old app's key file was copied. Lesley reports the set-up is done. The `compare:team-app-stats` output hasn't been shared yet; log it when it is.
+
+### What changed
+Branch `phase-0/walmart-us-auditor`. Step 5 of the plan, section 5.2.
+- **Backend, ported unchanged:** `config/walmart.php` (US, plus the unused CA block), the six table migrations, the six models, `InteractsWithWalmartApi`, `WalmartUsApiClient`, the catalog, report, listing-audit and audit-report services, the `walmart-us:listing-audit` command, the controller and its two routes.
+- **Registration:** the tool under a new "Walmart" group (icon `cart`), with the old name and description, and its 06:00 UTC task.
+- **Pages:** rebuilt on the design. Each score shows its band in words (Good 80+, Fair 50+, Poor below), and the SKU table sorts and exports by the number. The catalog rollup shows how fresh it is. The trend uses the shared themed chart. The old page had no tour, so none was added.
+- **Fixes** (`docs/found-issues.md`), each test failing on the old code first:
+  - **11:** the report download now checks its HTTP status, and a report with no SKU rows also falls back to the Insights endpoints. Before, Walmart's 520 error body was read as an empty report, so the run audited 0 SKUs and still wrote a catalog score. **The old app's data shows this:** 82 daily catalog scores, but SKU audits on only three days, the last on 2026-10-06. Every run since has audited nothing.
+  - **23, in the scheduler:** `ScheduledTask::registerAllOnto` registers tasks shortest first, by their last finished run. Laravel runs the tasks due in one minute one after another, so the 10 to 20 minute Walmart audit at 06:00 held up the rest. Running tasks in the background was not used, because it would break the run-history tracking (`before`/`after` run in different processes).
+- **Not ported:** `WalmartUsAuditParamsSeeder`, which had to be run by hand. Nothing reads the params yet, and the import copies the one row.
+- **`legacy:import-walmart-us`:** see the README table. Audits and scores this app records itself keep their own `run_at` and are left alone.
+- **`compare:walmart-us`:** matches rows on their natural keys and counts this app's own nightly rows as "only here" rather than as a difference. Every number is normalised to 4 places, because MariaDB returns `70.0000` where SQLite returns `70`; the MariaDB test run caught this.
+
+### Test status
+391 tests, 1,331 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. The seven new migrations roll back and re-apply on MariaDB.
+- **Carried over unchanged (30):** `WalmartUsAuditTest` 6, `WalmartUsListingAuditCommandTest` 4, `WalmartUsAuditReportServiceTest` 8, `WalmartUsApiClientTest` 4, `WalmartUsListingAuditServiceTest` 4, `WalmartUsCatalogServiceTest` 4.
+- **New:** `WalmartUsFixesTest` 2, `ScheduledTaskOrderTest` 1, `WalmartUsPageTest` 3, `ImportWalmartUsTest` 6.
+
+### Verified locally
+- **Against the restored `tools_db` copy** (into a throwaway MariaDB, since removed): the import copied 27 items, 79 snapshots, 79 audits, 440 issues, 82 catalog scores and 1 params row. A second run added and removed nothing. `compare:walmart-us` for 2026-09-01 to 2026-11-26 matched in all four sections.
+- **In headless Chrome, with made-up data:** the index page.
+- **Not verified:** a live Walmart run (it needs the server's credentials). After the first nightly run, check that Admin > Scheduler shows SKUs processed and `source=report` or `source=insights` in the run output.
+
+### Next step
+- Lesley pushes the branch; it merges itself.
+- **On the server:** add `WALMART_US_CLIENT_ID`, `WALMART_US_CLIENT_SECRET` and `WALMART_US_ENVIRONMENT=production` to `.env` (copy from the old app), then `php artisan optimize`. Then run `legacy:import-platform`, then `legacy:import-walmart-us` (`--dry-run` first), then `compare:walmart-us`.
+- Then step 6: US Product Reviews.
+
 ## 2026-11-29: step 4, BioSteel Teams App Stats (first tool)
 
 ### Verified live (3h, reported by Lesley)

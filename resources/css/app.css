@@ -754,6 +754,18 @@
         background: var(--accent);
     }
 
+    /* Table cells: a long name truncated, or long text allowed to wrap. */
+    .table .truncate-cell {
+        max-width: 22rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .table .wrap-cell {
+        white-space: normal;
+        min-width: 14rem;
+    }
+
     .pagination {
         display: flex;
         align-items: center;
