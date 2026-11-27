@@ -7,6 +7,131 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-26: Amazon probe results
+
+### What changed
+- **The probe ran on the server** at 2026-11-26 15:16 UTC, covering all 25 capabilities. Earlier the same day, a run with `--only=report.traffic` also passed.
+- **Results:** 20 pass, 1 empty, 1 fail, 1 rate limited, 1 role missing, 1 skipped. They are in the server's `amazon_capabilities` table and in `summary.json`. The summary is not committed.
+- **First deploy confirmed:** the site serves the placeholder home page. `APP_KEY` was generated on the server with `key:generate --force`.
+- No code changed.
+
+### Test status
+Unchanged: 40 tests passing.
+
+### Verified live on the account
+**Passed:**
+- Vendor reports:
+  - weekly inventory, both views
+  - weekly traffic
+  - net PPM
+  - promotions
+  - all three real-time reports
+  - Brand Analytics market basket and search terms (search terms checked for readiness only, not downloaded)
+- Data Kiosk:
+  - daily grain
+  - orders
+  - sourcing in both views
+  - forecasting
+  - customer returns
+  - grouping by vendor code
+- Other APIs:
+  - Vendor Orders
+  - seller marketplace participations
+  - seller offers on Amazon.ca
+
+**`procurableProductOOS` works under `sourcing`.** This settles the old app's 2026-08-27 failure: the field lives in `Sourcing`, not `ProductAvailability`.
+
+**Inventory report.** All the extra fields the spec wanted return data in the manufacturing view:
+- open PO units
+- aged 90+ day units
+- unhealthy units
+- confirmation rate
+- receive fill rate
+- lead time
+- unfilled customer ordered units
+
+Differences between views and fields:
+- The sourcing view leaves both out-of-stock rates and unfilled units empty, so collectors use the manufacturing view.
+- `uft` is empty in both views.
+- `procurableProductOutOfStockRate` and `sourceableProductOutOfStockRate` are 0–1 fractions.
+
+**Value ranges to allow for:**
+- `receiveFillRate` reaches 2, so it must not be capped at 1.
+- `sellThroughRate` runs from about −0.04 to 3.5.
+- These can be negative:
+  - `openPurchaseOrderUnits` and Data Kiosk `openPurchaseOrderQuantity`
+  - Data Kiosk ordered units and ordered revenue
+  - real-time ordered units and revenue
+  - net PPM
+- Data Kiosk `overallVendorLeadTime` matches the report's `averageVendorLeadTimeDays`. Both run 0 to 136.83 days.
+
+**Data Kiosk:**
+- **Daily grain** works. The latest day was 3 days before the run. One row in 1,249 had no ASIN.
+- **Forecasting** returns only the current forecast, 48 weeks per ASIN, whatever date range is asked for. Past forecasts can't be fetched later, so they must be saved every week, as the old app's `mkt_amazon_forecast_snapshots` does.
+- **Vendor codes.** Grouping by vendor code returns Z3091, GQ8J9 and `UNKNO`. `UNKNO` was 99 of 500 rows: shipped units Amazon doesn't attribute to either code. Totals per ASIN must include it.
+- **History limit.** Amazon refuses any start date more than two years back ("Start date must be no more than two years ago"). The window moves forward every week.
+
+**Vendor Orders.** Both vendor codes come back under one authorization (D9 confirmed). There were at least 100 purchase orders in 60 days; the probe read only the first page.
+
+**Seller token:**
+- It participates in 7 marketplaces, Amazon.ca among them, so D8 is confirmed.
+- One marketplace reports `hasSuspendedListings: true`.
+
+### Not passed
+| Capability | Result | Meaning |
+| --- | --- | --- |
+| Finance Remittance headers | 403 Unauthorized | The app lacks the Finance and Accounting role. The spec expected this (section 8). |
+| Finance Remittance detail | skipped | It needs an ID from the headers call. |
+| Data Kiosk product availability | 429 twice | Data Kiosk's query quota. Re-run on its own. It still holds the `sourceableROOS` scale question. |
+| Data Kiosk 2023 history | fail | The two-year limit. |
+| Coupon performance report | empty | The report works, but there were no coupons in 12 months. |
+
+### Assumed
+- `UNKNO` is Amazon's placeholder for an unattributed vendor code. Not confirmed with Amazon.
+- The vendor-code query returned exactly 500 rows. That's probably chance; Phase 1 compares its totals with the ASIN-only query.
+
+### Probe quirk
+In `summary.json`, when an object such as `shippedOrders` is null on some rows, its own entry shows `empty_rate: 1`. The rates on its child fields are the accurate ones. This affects nothing outside the summary.
+
+### Open questions for Lesley
+1. **Finance and Accounting role.** Adding it to the SP-API app and re-authorizing the vendor account issues a new vendor refresh token. That token goes into both apps' `.env`. Without the role, the Deductions Tracker uses the remittance upload (spec 12.1).
+2. **History before 2024-12-29.** The old database's weekly data starts on 2024-12-29. Data Kiosk can still return:
+   - the four weeks from 2024-12-01 to 2024-12-28, the run-up to Christmas 2024
+   - Black Friday and Cyber Monday 2024, at daily grain only, for a few more days
+
+   The two-year limit drops a day each day. The first of those weeks goes on 2026-12-01 and the last in late December 2026. Grabbing them needs a small one-off read-only command that saves the raw documents for Phase 1.
+3. **Suspended listings** in one seller marketplace. Worth a look in Seller Central.
+
+### Next step
+- Re-run `data_kiosk.product_availability` on its own.
+- Lesley answers the open questions.
+- Then step 3, the platform.
+
+## 2026-11-25: auto-merge
+
+### What changed
+- **New workflow,** `.github/workflows/auto-merge.yml` (PR #2, merged by hand). When CI passes on a pull request, it merges the pull request with a merge commit and deletes the branch. Plesk then deploys `main` as usual.
+- **When it doesn't merge:**
+  - the pull request is a draft
+  - it has the `hold` label
+  - its branch has moved past the commit CI tested
+  - it comes from a fork
+- **Step 2 went straight to `main`** (commit `fac9861`) without a pull request, so the probe is already deployed.
+- **README** has an "Auto-merge" note under Tests.
+
+### Test status
+No application code changed. CI passed on PR #2.
+
+### Verified
+- PR #2 was merged by hand. A `workflow_run` workflow only runs from the copy on `main`, so it can't merge the pull request that adds it. **Verified live.**
+- This entry's pull request is the first one auto-merge should handle. **Assumed** until it merges itself.
+
+### From docs
+- Merges made with `GITHUB_TOKEN` don't start other workflows, so CI doesn't run again on `main` after a merge. Repository webhooks still fire, so the Plesk deploy still runs.
+
+### Next step
+Lesley runs `amazon:probe` on the server (README "One-time commands") and sends back `summary.json`.
+
 ## 2026-11-25: step 2, Amazon capability probe
 
 ### What changed
