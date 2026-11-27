@@ -182,9 +182,33 @@ All under `/admin`, for the `admin` role only. The sidebar's Admin group links t
 - **Users** (`/admin/users`): invite people, and set the role, tool access and teams for each person. Only addresses on a company domain can be invited; the invitation is a "Sign in with Google" email, and Resend invite sends it again while they haven't signed in. A failed send leaves the person set up and says why. Every tool is listed, inactive ones marked; saving changes only `tool.*` permissions, so access to an inactive tool comes back when it is switched on. Deactivate signs someone out and keeps them out; delete is offered only once they are deactivated. You can't deactivate yourself or remove your own admin role. Someone who signs in without an invitation appears here with the `user` role and no tools.
 - **Teams** (`/admin/teams`): named groups of people. No tool uses them yet.
 - **Tools** (`/admin/tools`): see Tools registry.
+- **Scheduler** (`/admin/schedules`): every background task, with its schedule, last result and next run. Edit the schedule and timezone (the command is fixed by the tool), enable or disable, Run Now, and see each run's status, duration, who started it and its output. A failed run emails every active admin.
 - **Activity** (`/admin/activity`): the activity log, newest first, 25 a page, filtered by category.
 - **Mail** (`/admin/settings/mail`): connect the Gmail account the app sends from (send-only access), and send yourself a test email. Every email goes through it (`MAIL_MAILER=gmail_api`, `App\Mail\Transport\GmailApiTransport`). If Google rejects the cached access token, it is dropped and the send is tried once more.
 - **Google Sign-In** (`/admin/settings/google-domains`): the Workspace domains allowed to sign in. With none, nobody can sign in, so removing the last one warns that it locks everyone out, admins included. Adding and removing are logged.
+
+## Scheduler
+
+Database-driven, as in the old app. The server has **one** cron entry (Deploying, one-time setup) running `schedule:run` every minute; `routes/console.php` registers every enabled `scheduled_tasks` row onto Laravel's scheduler, with `withoutOverlapping()`. Each run is recorded in `scheduled_task_runs`.
+
+**Adding a task:** register it in the tool's migration, like a tool:
+
+```php
+TaskRegistry::register([
+    'command' => 'price-monitor:scan',
+    'name' => 'Price Monitor Scan',
+    'description' => 'Scrapes Amazon.ca prices for every tracked ASIN.',
+    'cron_expression' => '0 */2 * * *',
+    'timezone' => null,      // UTC
+    'enabled' => true,
+]);
+```
+
+Registering only inserts (`command` is unique), so it never overwrites an admin's changes. A task's command must run without questions: add `--force` to commands that ask for confirmation in production.
+
+**Run Now** starts `schedule:execute-run` as a detached background process (`App\Services\Scheduler\BackgroundProcessLauncher`), so a slow task can't time out the web request. It needs `SCHEDULER_PHP_CLI_BINARY` in `.env` (`/opt/plesk/php/8.4/bin/php`): inside PHP-FPM, `PHP_BINARY` is the FPM binary and nothing would run. A command that throws is recorded as a failed run.
+
+**Registered now:** `scheduler:heartbeat` (every 5 minutes, proves the pipeline runs) and `activitylog:clean --force` (daily 03:15 UTC, the 365-day retention).
 
 ## Imports from the old app
 
@@ -206,8 +230,9 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-platf
 | `activity_log` | Matched on `legacy_id` (the old row's ID). This app's own entries are kept. Read 1,000 rows at a time with a short pause between |
 | `tools` | Matched by slug. The old app's order and active flag are copied onto tools already registered here. Tools not ported yet are not created |
 | `teams`, `team_user` | Team IDs preserved. Each imported team's members are brought in line with the old app. A team name already used by a different ID here stops the import |
+| `scheduled_tasks` | Matched by command. The old app's enabled flag, schedule and timezone are copied onto tasks registered here; tasks not ported yet are not created. `asp:backfill` always stays disabled until cutover. Run history is not copied |
 
-It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Step 3h adds scheduled tasks to this command.
+It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Each ported tool adds its own tables to it.
 
 ## One-time commands
 

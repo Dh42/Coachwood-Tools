@@ -3,9 +3,11 @@
 namespace Tests\Feature\Legacy;
 
 use App\Models\GoogleWorkspaceDomain;
+use App\Models\ScheduledTask;
 use App\Models\Team;
 use App\Models\Tool;
 use App\Models\User;
+use App\Scheduling\TaskRegistry;
 use App\Tools\ToolRegistry;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,7 +25,7 @@ class ImportPlatformTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const OLD_TABLES = ['users', 'roles', 'permissions', 'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'google_workspace_domains', 'activity_log', 'tools', 'teams', 'team_user'];
+    private const OLD_TABLES = ['users', 'roles', 'permissions', 'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'google_workspace_domains', 'activity_log', 'tools', 'teams', 'team_user', 'scheduled_tasks'];
 
     protected function setUp(): void
     {
@@ -59,6 +61,16 @@ class ImportPlatformTest extends TestCase
         $schema->create('google_workspace_domains', function (Blueprint $t) {
             $t->id();
             $t->string('domain');
+            $t->timestamps();
+        });
+        $schema->create('scheduled_tasks', function (Blueprint $t) {
+            $t->id();
+            $t->string('name');
+            $t->text('description')->nullable();
+            $t->string('command');
+            $t->string('cron_expression');
+            $t->string('timezone')->nullable();
+            $t->boolean('enabled')->default(true);
             $t->timestamps();
         });
         $schema->create('teams', function (Blueprint $t) {
@@ -123,6 +135,11 @@ class ImportPlatformTest extends TestCase
             ['permission_id' => 30, 'role_id' => 7],
         ]);
         $old->table('google_workspace_domains')->insert([['domain' => 'example.test']]);
+        $old->table('scheduled_tasks')->insert([
+            ['name' => 'Heartbeat', 'command' => 'scheduler:heartbeat', 'cron_expression' => '*/10 * * * *', 'timezone' => null, 'enabled' => false],
+            ['name' => 'Backfill', 'command' => 'asp:backfill', 'cron_expression' => '*/10 * * * *', 'timezone' => null, 'enabled' => true],
+            ['name' => 'Not Ported', 'command' => 'not:ported', 'cron_expression' => '0 * * * *', 'timezone' => 'America/Toronto', 'enabled' => true],
+        ]);
         $old->table('teams')->insert([['id' => 4, 'name' => 'Amazon', 'description' => 'Made-up team']]);
         $old->table('team_user')->insert([
             ['team_id' => 4, 'user_id' => 3],
@@ -273,6 +290,7 @@ class ImportPlatformTest extends TestCase
                 ['tools', 2, 0, 0, 0],
                 ['teams', 1, 1, 0, 0],
                 ['team_user', 2, 2, 0, 0],
+                ['scheduled_tasks', 3, 0, 1, 0],
             ])
             ->assertSuccessful();
     }
@@ -295,6 +313,7 @@ class ImportPlatformTest extends TestCase
                 ['tools', 2, 0, 0, 0],
                 ['teams', 1, 0, 1, 0],
                 ['team_user', 2, 0, 0, 0],
+                ['scheduled_tasks', 3, 0, 0, 0],
             ])
             ->assertSuccessful();
     }
@@ -360,10 +379,28 @@ class ImportPlatformTest extends TestCase
         $this->assertSame(0, User::count());
     }
 
+    public function test_it_copies_the_old_schedule_onto_tasks_registered_here_only(): void
+    {
+        TaskRegistry::register(['command' => 'asp:backfill', 'name' => 'Backfill', 'cron_expression' => '0 * * * *', 'enabled' => false]);
+
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+
+        $heartbeat = ScheduledTask::where('command', 'scheduler:heartbeat')->sole();
+        $this->assertFalse($heartbeat->enabled);
+        $this->assertSame('*/10 * * * *', $heartbeat->cron_expression);
+
+        $backfill = ScheduledTask::where('command', 'asp:backfill')->sole();
+        $this->assertFalse($backfill->enabled, 'asp:backfill stays disabled until cutover');
+        $this->assertSame('*/10 * * * *', $backfill->cron_expression);
+
+        $this->assertDatabaseMissing('scheduled_tasks', ['command' => 'not:ported']);
+        $this->assertTrue(ScheduledTask::where('command', 'activitylog:clean --force')->sole()->enabled, 'tasks only this app has are left alone');
+    }
+
     /** @return array<string, list<array<string, mixed>>> */
     private function newDatabaseRows(): array
     {
-        $tables = ['users' => 'id', 'roles' => 'id', 'permissions' => 'id', 'google_workspace_domains' => 'id', 'model_has_roles' => 'model_id', 'model_has_permissions' => 'model_id', 'role_has_permissions' => 'role_id', 'activity_log' => 'id', 'teams' => 'id', 'team_user' => 'user_id'];
+        $tables = ['users' => 'id', 'roles' => 'id', 'permissions' => 'id', 'google_workspace_domains' => 'id', 'model_has_roles' => 'model_id', 'model_has_permissions' => 'model_id', 'role_has_permissions' => 'role_id', 'activity_log' => 'id', 'teams' => 'id', 'team_user' => 'user_id', 'scheduled_tasks' => 'id'];
 
         return collect($tables)->map(fn (string $order, string $table) => DB::table($table)->orderBy($order)->get()->map(fn ($row) => (array) $row)->all())->all();
     }

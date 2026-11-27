@@ -47,14 +47,14 @@ Status values:
 
 | # | Area | Issue | Where | Status |
 | --- | --- | --- | --- | --- |
-| 17 | Platform | A "Run Now" that throws leaves the run "running", then "stale", with no email | `ScheduleExecuteRunCommand.php:52` | to fix |
-| 18 | Platform | `scheduled_tasks` has no unique key, so its `insertOrIgnore` registrations are not idempotent. Failure emails go to disabled admins too | `scheduled_tasks` migration, `ScheduledTask.php:121` | to fix |
+| 17 | Platform | A "Run Now" that throws leaves the run "running", then "stale", with no email | `ScheduleExecuteRunCommand.php:52` | fixed in 3h: a command that throws closes the run as failed (exit code 1, the error in its output) and emails the admins |
+| 18 | Platform | `scheduled_tasks` has no unique key, so its `insertOrIgnore` registrations are not idempotent. Failure emails go to disabled admins too | `scheduled_tasks` migration, `ScheduledTask.php:121` | fixed in 3h: `scheduled_tasks.command` is unique, and failure emails skip disabled admins. A failure email that can't be sent is logged instead of breaking the run |
 | 19 | Platform | Sending a test mail or a password reset returns a 500 if Gmail fails. A revoked Gmail token stays cached for up to 55 minutes | `MailConnectionController@test`, `PasswordResetLinkController`, `GmailApiTransport` | fixed in 3g: a failed test email is shown on the page, and a rejected cached token is dropped and the send retried once. The password-reset part went with password sign-in in 3b |
 | 20 | App Stats, Lost Sales | Date filters are parsed without validation, so bad input returns a 500 | `TeamAppStatsController@index`, `StockoutController` | to fix |
 | 21 | Amazon tools | `SpApiClient` has no retry or 429 handling, only fixed pauses. The Image Manager's no-JavaScript audit loop has no pause at all | `SpApiClient::request`, `ImageManagerController.php:201-203` | to fix |
 | 22 | VC Image Manager | The image file is stored before Amazon's preview runs, so a rejected upload leaves an orphan file | `ImageManagerController.php:102-152` | to fix |
 | 23 | Walmart US Auditor | The audit takes 10 to 20 minutes and runs at 06:00 UTC, so other tasks due at 06:00 wait behind it | `walmart-us:listing-audit` schedule | to fix |
-| 30 | Platform | The activity log is configured to keep 365 days, but `activitylog:clean` is never scheduled, so nothing is ever deleted. No row is older than 365 days yet (the oldest is from August 2026) | `config/activitylog.php`, scheduled tasks | to fix in 3h, with the scheduler |
+| 30 | Platform | The activity log is configured to keep 365 days, but `activitylog:clean` is never scheduled, so nothing is ever deleted. No row is older than 365 days yet (the oldest is from August 2026) | `config/activitylog.php`, scheduled tasks | fixed in 3h: `activitylog:clean --force` is registered daily at 03:15 UTC |
 
 ## Documentation only
 

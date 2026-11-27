@@ -3,13 +3,13 @@
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\GoogleDomainController;
 use App\Http\Controllers\Admin\MailConnectionController;
+use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\ToolController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
-// Admin pages. Ported route by route as each slice lands; names and URLs
-// are the old app's. The Scheduler comes in 3h.
+// Admin pages, ported from the old app with the same names and URLs.
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::redirect('/', '/admin/users')->name('dashboard');
 
@@ -27,6 +27,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('users/{user}/resend-invitation', [UserController::class, 'resendInvitation'])->name('users.resend-invitation');
     Route::patch('users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
     Route::patch('users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
+
+    Route::resource('schedules', ScheduleController::class)->only(['index', 'edit', 'update', 'show']);
+    Route::patch('schedules/{schedule}/enable', [ScheduleController::class, 'enable'])->name('schedules.enable');
+    Route::patch('schedules/{schedule}/disable', [ScheduleController::class, 'disable'])->name('schedules.disable');
+    Route::post('schedules/{schedule}/run', [ScheduleController::class, 'run'])->name('schedules.run');
 
     Route::get('activity', [ActivityLogController::class, 'index'])->name('activity.index');
 
