@@ -163,6 +163,35 @@ class ImportLostSalesTest extends TestCase
             ->assertSuccessful();
     }
 
+    /**
+     * The server's two databases sort text differently (the old one ignores
+     * case, this one compared bytes), so ordering in SQL made identical rows
+     * look different (2026-12-02). Here the old table sorts ignoring case,
+     * as on the server.
+     */
+    public function test_the_two_apps_match_even_when_their_databases_sort_text_differently(): void
+    {
+        $schema = Schema::connection('legacy');
+        $schema->drop('inventory_history_daily');
+        $schema->create('inventory_history_daily', function (Blueprint $t) {
+            $t->id();
+            $t->string('product_title')->collation('NOCASE');
+            $t->date('day');
+            $t->integer('ending_inventory_units');
+            $t->timestamp('ingested_at');
+            $t->timestamps();
+        });
+        DB::connection('legacy')->table('inventory_history_daily')->insert([
+            ['product_title' => 'apple made-up', 'day' => '2026-01-01', 'ending_inventory_units' => 1, 'ingested_at' => '2026-09-27 00:00:00'],
+            ['product_title' => 'Banana made-up', 'day' => '2026-01-01', 'ending_inventory_units' => 2, 'ingested_at' => '2026-09-27 00:00:00'],
+        ]);
+        $this->artisan('legacy:import-lost-sales')->assertSuccessful();
+
+        $this->artisan('compare:lost-sales')
+            ->expectsOutputToContain('Everything matches.')
+            ->assertSuccessful();
+    }
+
     public function test_a_difference_is_reported_without_printing_values(): void
     {
         $this->artisan('legacy:import-lost-sales')->assertSuccessful();

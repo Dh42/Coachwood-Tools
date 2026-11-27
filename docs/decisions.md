@@ -2,6 +2,14 @@
 
 Each entry records a decision that replaces or adds to a default in `docs/build-spec.md`. Where this file and the spec differ, this file wins. Newest first.
 
+## 2026-12-02: commit straight to main
+
+Decided by Lesley.
+
+| Topic | Decision | Replaces |
+| --- | --- | --- |
+| Git flow | Everything is committed to `main`: no per-step branches or pull requests. Claude commits and pushes when Lesley asks. CI runs on every push; `.github/workflows/release.yml` moves the `release` branch to a commit only once CI has passed on it, and Plesk deploys `release`. `auto-merge.yml` is removed | One pull request per step (plan, `CLAUDE.md`); branch, auto-merge, deploy `main` |
+
 ## 2026-12-02: Lost Sales snapshot clean-up
 
 Decided by Lesley while porting BioSteel Shopify Lost Sales.

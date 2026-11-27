@@ -54,26 +54,14 @@ Parallel runs create `coachwood_tools_test_test_N` databases, so the user needs 
 
 No test may make a live call. `Tests\TestCase` calls `Http::preventStrayRequests()`, so any request not matched by `Http::fake()` fails the test.
 
-CI (`.github/workflows/ci.yml`) runs on every push to every branch: Pint, the Vite build, and the suite on SQLite and on MariaDB 10.11.14.
+CI (`.github/workflows/ci.yml`) runs on every push: Pint, the Vite build, and the suite on SQLite and on MariaDB 10.11.14.
 
-**Shipping a change.** Make a branch from `main`, commit, and push it. Nothing else:
-1. CI runs on the branch.
-2. When it passes, `.github/workflows/auto-merge.yml` opens a pull request for the branch, titled with the latest commit's first line, and merges it into `main`. It also deletes the branch.
-3. The merge deploys through the Plesk webhook.
+**Shipping a change.** Commit to `main` and push (decision 2026-12-02). Nothing else:
+1. CI runs on the commit.
+2. When it passes, `.github/workflows/release.yml` moves the `release` branch to that exact commit.
+3. Plesk deploys `release` through its webhook.
 
-A failing run merges nothing. Fix it and push again.
-
-**To stop a branch merging:**
-- name it `wip/...`, or
-- open its pull request yourself as a draft, or add the `hold` label, before CI finishes.
-
-**It also skips:**
-- a branch that is behind `main`. Rebase it, or merge `main` into it, and push again.
-- a commit that is no longer the branch's latest. The newer commit's run decides.
-
-Never push to `main` directly. Plesk deploys `main` whether or not CI passed.
-
-A merge made this way doesn't re-run CI on `main`, because GitHub doesn't start workflows from its own token. The Plesk webhook still fires.
+A failing run releases nothing. Fix it and push again. If two pushes come close together, CI cancels the older run and only the newer commit is released. `release` only moves forward, and is never committed to by hand.
 
 ## Front end
 
@@ -92,7 +80,7 @@ The page shell and themes come from the Claude Design canvas "Coachwood Tools Re
 
 ## Deploying
 
-Plesk pulls `main` into `/var/www/vhosts/tools.coachwoodgroup.com/httpdocs`. The document root is `httpdocs/public`.
+Plesk pulls the `release` branch (see "Shipping a change") into `/var/www/vhosts/tools.coachwoodgroup.com/httpdocs`. The document root is `httpdocs/public`.
 
 **One-time setup:**
 1. Place `.env` in `httpdocs/`, made from `docs/server.env.example`, before the first deploy.
@@ -259,7 +247,7 @@ Ported from the old app's Stockout Lost Sales Estimator and renamed (decision D7
 - **Scheduled:** `stockout:snapshot-inventory` every 15 minutes (a read-only sweep of every tracked variant's stock into `inventory_snapshots`) and `stockout:prune-snapshots` hourly at :17 (keeps `STOCKOUT_SNAPSHOT_RETENTION_DAYS`, default 90). The clean-up runs wherever the sweep does.
 - **By hand:** `stockout:import-shopifyql-history` and `stockout:import-shopifyql-sales-history` (backfill the daily history from ShopifyQL), then `stockout:derive-intervals` and `stockout:estimate-lost-sales`. Not run here before cutover: the import copies the old app's results.
 - **Webhook:** `POST /webhooks/shopify/inventory-levels-update`, HMAC-checked with `STOCKOUT_SHOPIFY_CLIENT_SECRET`, one primary-key read and one insert. No subscription points at this app until cutover. `stockout:register-webhook` creates one only when `TOOLS_EXTERNAL_WRITES=true`.
-- **Settings:** `SHOPIFY_STORE`, `STOCKOUT_SHOPIFY_CLIENT_ID`, `STOCKOUT_SHOPIFY_CLIENT_SECRET` (the tool's own custom app; the access token is fetched and cached for 20 hours).
+- **Settings:** `SHOPIFY_STORE`, and either `STOCKOUT_SHOPIFY_ACCESS_TOKEN` (used as it is) or `STOCKOUT_SHOPIFY_CLIENT_ID` and `STOCKOUT_SHOPIFY_CLIENT_SECRET` (the tool's own custom app; a token is then fetched and cached for 20 hours). The client secret is also what the webhook's signature is checked with, so it's needed at cutover.
 
 ### Shared product lists
 
@@ -353,7 +341,7 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:lost-sales
 | `variant_availability_intervals`, `lost_sales_estimates` | An exact copy, IDs included (`TableMirror`) |
 | `inventory_snapshots` | Not copied (spec 14.1). This app's sweep fills it |
 
-The comparison hashes every row the page reads in both databases: the history tables on (product title, day), intervals and estimates whole. Counts and hashes only.
+The comparison hashes every row the page reads in both databases: the history tables on (product title, day), sorted in PHP so the two databases' text sorting can't matter, and intervals and estimates whole, in ID order. Counts and hashes only.
 
 ## One-time commands
 

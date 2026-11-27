@@ -27,7 +27,7 @@ Sources: `docs/build-spec.md`, `docs/decisions.md`, the old code at `~/PhpstormP
 
 About 694 of the 1,296 old tests carry over. The rest cover tools rebuilt in later phases, or the Zendesk sidebar, which is dropped. Counts come from reading the test files and are approximate until the tests run in the new repo.
 
-Each step is one pull request. Each tool's pull request contains:
+Each step is committed to `main` (decision 2026-12-02; this was one pull request per step). Each tool's step contains:
 - its tests, carried over first
 - the ported code
 - its registration migration

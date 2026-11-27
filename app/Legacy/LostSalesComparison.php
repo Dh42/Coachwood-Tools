@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\DB;
  * `compare:lost-sales`: hashes every row the page reads, in both
  * databases. The history tables are compared on (product_title, day)
  * without their IDs, which differ by design; intervals and estimates keep
- * the old IDs, so they are compared whole. Counts and hashes only.
+ * the old IDs, so they are compared whole, in ID order. Counts and hashes
+ * only.
  */
 final class LostSalesComparison
 {
@@ -20,9 +21,12 @@ final class LostSalesComparison
         $sections = [];
         foreach (LostSalesImporter::HISTORY as $table => $columns) {
             $compared = array_values(array_diff($columns, ['created_at', 'updated_at']));
-            $sections[$table] = fn (?string $connection) => DB::connection($connection)->table($table)
-                ->orderBy('product_title')->orderBy('day')->get($compared)
-                ->map(fn ($row) => RowHasher::normalise((array) $row))->all();
+            // Sorted here, byte by byte, not in SQL: the two databases can
+            // sort text differently (on the server the old one ignores case
+            // and this one doesn't), which made identical rows look different.
+            $sections[$table] = fn (?string $connection) => RowHasher::sorted(DB::connection($connection)->table($table)
+                ->get($compared)
+                ->map(fn ($row) => RowHasher::normalise((array) $row))->all());
         }
         foreach (LostSalesImporter::MIRRORED as $table => $columns) {
             $sections[$table] = fn (?string $connection) => DB::connection($connection)->table($table)

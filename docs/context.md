@@ -7,6 +7,49 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-02: Lost Sales comparison order, and a hole in the test safeguards
+
+### What changed
+Branch `fix/lost-sales-compare-order`, from `main` after #21 (step 7) merged.
+
+- **`compare:lost-sales` reported two false differences on the server.**
+  - Lesley ran the step 7 imports on the server; the four tables were imported in full. The comparison then said `inventory_history_daily` and `sales_history_daily` differed, with equal row counts.
+  - The old app's hashes were the same as on the local copy. Locally, building this app's database with a byte-order collation (`utf8mb4_bin`) gave exactly the server's two new hashes. So the rows are identical: the two databases sorted the product titles differently (the old one ignores case).
+  - **Fix:** those two tables are now sorted in PHP before hashing (`RowHasher::sorted`), so the database's sorting can't matter. Checked on the real data under both collations: all four sections match, with the same hashes.
+  - The intervals and estimates are compared in ID order and already matched.
+- **The test safeguards didn't stop exported shell variables.**
+  - While checking the above, I ran the suite in a shell where `LEGACY_TOOLS_DB_*` was exported for the local import. The tests reached the local restored copy of the old database (the `coachwood-legacy-db` container, not production), and the import tests' set-up dropped and recreated tables in it.
+  - **Cause:** `phpunit.xml`'s `<env force="true">` sets `getenv()` and `$_ENV` but not `$_SERVER`, which Laravel reads first. So the forced values only ever beat `.env`. The same gap applied to `TOOLS_EXTERNAL_WRITES`, though `Http::preventStrayRequests()` would still have blocked any call.
+  - **Fix:** matching `<server force="true">` entries, and `Tests\TestCase` now sets the legacy connection to in-memory SQLite and external writes off directly, whatever the environment says.
+  - `TestSafeguardsTest` (written first and seen failing) runs PHPUnit in a child process with hostile values exported and checks that they don't reach a test. The full suite also passes with them exported.
+  - The production old database can't be dropped through this app's legacy user, which has only `SELECT, SHOW VIEW`.
+  - The local copy was rebuilt from the 2026-11-24 export.
+- **README:** the Lost Sales settings now say either `STOCKOUT_SHOPIFY_ACCESS_TOKEN` or the client ID and secret. The old app uses the access token.
+
+### Test status
+522 tests passing on SQLite (parallel), and on MariaDB 10.11.14 with both `utf8mb4_unicode_ci` and `utf8mb4_bin`. Pint clean. New: `TestSafeguardsTest` 2, and 1 in `ImportLostSalesTest` (an old table that sorts ignoring case).
+
+### Verified
+- **Verified live:** Lesley ran the step 7 imports on the server.
+  - `legacy:import-platform` moved 6 grants to the new permission (6 new, 6 removed).
+  - `legacy:import-lost-sales` copied 53,697, 22,150, 258 and 414 rows.
+  - Intervals and estimates matched; the two history tables were the false differences above.
+- **Local:** the cause was reproduced exactly (same hashes) and the fix was checked on the real data.
+
+### Open questions
+- **This app's server database seems to sort text by bytes (case-sensitive), unlike the old app's.** It looks like a binary or case-sensitive collation, which would come from `DB_COLLATION` in the server `.env`, since `config/database.php` defaults to `utf8mb4_unicode_ci`. It changes how name lists sort, and makes text comparisons case-sensitive. Lesley to check, and decide whether to match the old app.
+
+### Git flow changed (decision 2026-12-02)
+Lesley doesn't work with git from the command line, and the per-step pull requests weren't their flow. From now on:
+- Everything is committed to `main`; Claude commits and pushes when asked.
+- `release.yml` moves a `release` branch to each commit that passes CI, and Plesk deploys `release`.
+- `auto-merge.yml` is removed. `CLAUDE.md`, the plan and the README are updated.
+- The merged local branches were deleted.
+- **Lesley, once, after this push:** in Plesk > Git, set the deployed branch to `release`. Until then, Plesk still deploys `main` on every push.
+
+### Next step
+Lesley switches Plesk to `release`, then re-runs `compare:lost-sales` on the server (no new import needed). Then step 8: CDQ Listing Quality Report.
+
 ## 2026-12-02: step 7, BioSteel Shopify Lost Sales
 
 ### What changed

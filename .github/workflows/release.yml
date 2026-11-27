@@ -1,0 +1,52 @@
+name: Release
+
+# Work is pushed straight to main (decision 2026-12-02). Plesk deploys the
+# `release` branch, not main. When CI passes on a push to main, this moves
+# `release` to exactly that tested commit, which deploys it. A failing run
+# releases nothing; fix it and push again.
+#
+# `release` only ever moves forward: if a newer commit was released first,
+# an older run does nothing.
+#
+# workflow_run workflows only run from the copy on main.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Move release to the tested commit
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if git rev-parse -q --verify origin/release >/dev/null; then
+            if git merge-base --is-ancestor "$SHA" origin/release; then
+              echo "release already includes ${SHA:0:7}; nothing to do."
+              exit 0
+            fi
+            if ! git merge-base --is-ancestor origin/release "$SHA"; then
+              echo "::error::release has commits that are not on main. Not moving it."
+              exit 1
+            fi
+          fi
+          git push origin "$SHA:refs/heads/release"
+          echo "Released ${SHA:0:7}."

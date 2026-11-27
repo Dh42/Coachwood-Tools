@@ -33,6 +33,20 @@ final class RowHasher
         }, $row);
     }
 
+    /**
+     * Rows in byte order of their values, the same whatever database they
+     * came from. For tables compared without IDs.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    public static function sorted(array $rows): array
+    {
+        usort($rows, fn (array $a, array $b) => strcmp(json_encode(array_values($a)), json_encode(array_values($b))));
+
+        return $rows;
+    }
+
     /** @param  array<mixed>  $rows */
     public static function hash(array $rows): string
     {

@@ -1,8 +1,7 @@
 name: CI
 
-# Runs on every push to every branch. A passing run on a branch other than
-# main is what auto-merge.yml acts on. There is no pull_request trigger: the
-# push run already reports on the branch's commit, so it would only run twice.
+# Runs on every push. A passing run on main is what release.yml acts on: it
+# moves the `release` branch, which Plesk deploys, to that tested commit.
 on:
   push:
     branches: ['**']
