@@ -397,6 +397,16 @@ class ImportPlatformTest extends TestCase
         $this->assertTrue(ScheduledTask::where('command', 'activitylog:clean --force')->sole()->enabled, 'tasks only this app has are left alone');
     }
 
+    /** The old app's ASP backfill commands carry a store, e.g. "asp:backfill CP". */
+    public function test_a_per_store_backfill_stays_disabled_until_cutover(): void
+    {
+        DB::connection('legacy')->table('scheduled_tasks')->insert(['name' => 'Backfill CP', 'command' => 'asp:backfill CP', 'cron_expression' => '*/10 * * * *', 'timezone' => null, 'enabled' => true]);
+
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+
+        $this->assertFalse(ScheduledTask::where('command', 'asp:backfill CP')->sole()->enabled);
+    }
+
     public function test_grants_and_settings_for_a_renamed_tool_move_to_its_new_name(): void
     {
         DB::connection('legacy')->table('permissions')->insert(['id' => 32, 'name' => 'tool.stockout', 'guard_name' => 'web']);

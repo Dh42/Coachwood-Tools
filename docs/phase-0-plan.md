@@ -18,7 +18,7 @@ Sources: `docs/build-spec.md`, `docs/decisions.md`, the old code at `~/PhpstormP
 | 6 | US Product Reviews | No | 15 |
 | 7 | BioSteel Shopify Lost Sales (renamed Stockout) | No | 85 (4 changed on purpose; see the step 7 context entry) |
 | 8 | CDQ Listing Quality Report | No (Anthropic calls cost money) | 61 (2 fixtures changed on purpose; see the step 8 context entry) |
-| 9 | ASP Tracker, Canadian Protein and BioSteel | Shopify bulk operations | 33 |
+| 9 | ASP Tracker, Canadian Protein and BioSteel | Shopify bulk operations | 33 (2 changed on purpose; see the step 9 context entry) |
 | 10 | Team Sponsorship and Team Sponsorship Stats | Shopify draft orders, invoice emails, Klaviyo | 58 |
 | 11 | VC and SC Listings Editors | Amazon listing submissions | 101 |
 | 12 | VC Image Manager | Amazon image submissions | 24 |

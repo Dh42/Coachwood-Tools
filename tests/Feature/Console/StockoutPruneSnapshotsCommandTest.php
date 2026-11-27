@@ -65,8 +65,8 @@ class StockoutPruneSnapshotsCommandTest extends TestCase
     public function test_the_incident_indexes_exist_after_migrating(): void
     {
         $this->assertTrue(Schema::hasIndex('inventory_snapshots', ['inventory_item_id', 'captured_at', 'variant_id']));
-        // Changed in the rebuild: the asp_ingest_log half of this test moves
-        // to the ASP Trackers step, which ports that table.
+        // Changed in the rebuild: the asp_ingest_log half of this test is in
+        // AspTrackerSafetyTest, with the table it checks.
     }
 
     // Changed in the rebuild (decision 2026-12-01): the old app registered

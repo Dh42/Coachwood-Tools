@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Tools\AspTrackerController;
 use App\Http\Controllers\Tools\CdqReportController;
 use App\Http\Controllers\Tools\FeedbackController;
 use App\Http\Controllers\Tools\StockoutController;
@@ -53,3 +54,16 @@ Route::middleware(['auth', 'permission:tool.cdq-report'])
         Route::get('/export.csv', [CdqReportController::class, 'exportCsv'])->name('export-csv');
         Route::get('/{asin}', [CdqReportController::class, 'show'])->name('show');
     });
+
+// One ASP tracker tool per store (asp_tracker.stores.*.tool_slug): Canadian
+// Protein at /tools/asp-tracker, BioSteel at /tools/asp-tracker-bs.
+foreach (config('asp_tracker.stores', []) as $aspStore => $aspConfig) {
+    Route::middleware(['auth', "permission:tool.{$aspConfig['tool_slug']}"])
+        ->prefix("tools/{$aspConfig['tool_slug']}")
+        ->name("tools.{$aspConfig['tool_slug']}.")
+        ->group(function () use ($aspStore) {
+            Route::get('/', [AspTrackerController::class, 'index'])->defaults('store', $aspStore)->name('index');
+            Route::get('/drilldown', [AspTrackerController::class, 'drilldown'])->defaults('store', $aspStore)->name('drilldown');
+            Route::get('/export.csv', [AspTrackerController::class, 'exportCsv'])->defaults('store', $aspStore)->name('export-csv');
+        });
+}

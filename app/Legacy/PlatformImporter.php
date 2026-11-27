@@ -376,7 +376,8 @@ final class PlatformImporter
         foreach ($old as $row) {
             $enabled = isset(self::ENABLED_WITH[$row->command]) ? (bool) $oldEnabled->get(self::ENABLED_WITH[$row->command], false) : (bool) $row->enabled;
             $values = [
-                'enabled' => $enabled && ! in_array($row->command, self::DISABLED_UNTIL_CUTOVER, true),
+                // Matched on the command's name: the ASP backfill is "asp:backfill CP" and "asp:backfill BS".
+                'enabled' => $enabled && ! in_array(strtok($row->command, ' '), self::DISABLED_UNTIL_CUTOVER, true),
                 'cron_expression' => $row->cron_expression,
                 'timezone' => $row->timezone,
             ];

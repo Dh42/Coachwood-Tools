@@ -7,6 +7,61 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-04: step 9, ASP Tracker (Canadian Protein and BioSteel)
+
+### What changed
+Step 9 of the plan, section 5.6. Uncommitted in the working copy; Lesley commits.
+
+- **Ported unchanged:** the ten `App\Services\AspTracker` classes, `AspIngestLog`, the five `asp:*` commands, `AspTrackerController`, the webhook controller, `config/asp_tracker.php`, and the shared `CombinedShipping\ShopifyGraphQlClient`. `config/combined_shipping.php` has only the shared brands and API version; the rest comes with Combined Shipping. `tests/Support/AspOrderFixtures.php` was copied too.
+- **Tables:** one migration creates the six tables in the old app's final shape: BioSteel added, `kept_order_discount`, `is_draft` renamed to `is_excluded`, and the incident index on `asp_ingest_log`.
+- **Registration:** one tool per store, at the old URLs and permissions. Canadian Protein is in a new "Canadian Protein Shopify" sidebar group; BioSteel sits beside Lost Sales in "BioSteel Shopify". Icon `tag`. Four tasks per store at the old schedules and timezones; `asp:backfill` is registered disabled.
+- **Routes:** both stores' pages, drill-down and CSV, and both webhook receivers (`/webhooks/shopify/asp/cp` and `/bs`). Nothing points at the receivers before cutover.
+- **Guards (plan section 5.6, "not run in the new app until cutover"):**
+  - The backfill's `bulkOperationRunQuery` goes through `ExternalWrites`, checked before any Shopify call.
+  - So does `asp:register-webhooks`' `webhookSubscriptionCreate`, checked after the read-only list.
+  - Tests: `AspTrackerSafetyTest`.
+- **Bug fixed in this app:** `PlatformImporter::DISABLED_UNTIL_CUTOVER` compared the whole command, but the old tasks are `asp:backfill CP` and `asp:backfill BS`. The import would have copied the old app's "enabled" onto them. It now matches the command's name. The test (in `ImportPlatformTest`) failed first. It couldn't have happened yet, since no ASP task existed here before this step.
+- **Page:** rebuilt on the design.
+  - Filters with product search, date presets, six headline figures, the key and the discount mix.
+  - Price and units charts on the shared themed chart: product ASP dotted and list ASP dashed, so the lines are told apart without colour. Clicking a point, bar or period row opens the drill-down (now a native dialog).
+  - By variant / product and by period tables as link tabs (`?tab=periods`), with CSV.
+  - "How this is calculated", data status, and the Tutorial tour.
+  - The empty state now says history comes from the import, since the backfill is off until cutover.
+  - The script moved to `resources/js/tools/asp-tracker.js`.
+  - New CSS: link segmented buttons, `.chart-box-short`, clickable rows (`.row-link`, keyboard too), `.modal-wide`, `.scope-list-flush`.
+- **`legacy:import-asp-tracker` (new):**
+  - 1,000 orders per batch, each in its own short transaction with a pause.
+  - Lines are upserted per order, and lines this app has for an imported order but the old app doesn't are removed. Discounts are synced as a multiset, so a re-run writes nothing.
+  - The queue is upserted and the ingest log mirrored. Both stores' rollups are then rebuilt with the tool's own `DailyRollup`.
+  - `--dry-run` writes nothing, because rolling back a transaction this size would be heavy on the shared server.
+- **`compare:asp-tracker` (new):** compares lines, discounts and both rollup tables for orders older than 3 days, as order-independent set hashes (`App\Legacy\MultisetHash`).
+
+### Test status
+636 tests, 2,130 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. Both new migrations roll back and re-apply on MariaDB. CI's steps were replayed on a clean copy without `.env`.
+
+- **Carried over (33).** Two tests changed on purpose, each with a comment:
+  - `AspTrackerIngestTest` turns external writes on in its setup.
+  - Its rollup snapshot selected `is_draft`, the column's old name. SQLite read the unknown name as a plain string, so it compared nothing; MariaDB caught it.
+- **Moved here:** the `asp_ingest_log` half of a Lost Sales test.
+- **New:** `AspTrackerSafetyTest` 3, `ImportAspTrackerTest` 4, and 1 in `ImportPlatformTest`.
+
+### Verified locally
+- **Against the restored `tools_db` copy** (into a throwaway MariaDB; the `legacy` settings scoped to each command):
+  - `legacy:import-platform`: both backfills disabled, the other six ASP tasks enabled.
+  - `legacy:import-asp-tracker`: 1,434,312 lines, 918,438 discounts, 3 queued orders and 54,160 log rows, in 9.5 minutes, at most 118 MB of memory. A second run added and removed nothing.
+  - `compare:asp-tracker`: all four sections matched, including the rollups rebuilt here (402,012 daily-sales rows and 385,705 daily-discount rows, the same as the old app's). It took about 2 minutes.
+- **In headless Chrome, with made-up data:** the page at desktop and phone widths. The six headline figures wrapped onto two rows at desktop width; fixed with `.stat-row-tight`.
+- **The page script, with real input over the DevTools protocol:**
+  - Hovering the price chart showed the tooltip ("ASP: …"), and the units chart responded too.
+  - Clicking a period row opened the drill-down dialog for that week.
+  - Typing in the product search narrowed the list.
+- **Not verified:** the drill-down's data inside that dialog in the browser, since the static snapshot isn't signed in. The endpoint itself is covered by the ported test.
+
+### Next step
+- Lesley commits and pushes.
+- **On the server:** `legacy:import-platform` (registers the ASP task settings), `legacy:import-asp-tracker --dry-run`, then `legacy:import-asp-tracker` (about 10 minutes), then `compare:asp-tracker`. The catch-up and queue tasks start on their own; the backfills stay off.
+- Then step 10: Team Sponsorship and Team Sponsorship Stats.
+
 ## 2026-12-03: step 8, CDQ Listing Quality Report
 
 ### What changed
@@ -41,6 +96,7 @@ Committed straight to `main` (decision 2026-12-02). Step 8 of the plan, section 
   - `legacy:import-cdq-report`: 9 schemas, 1,510 snapshots, 1 config version with 22 checks, 85,275 defects, 1,509 scores, 34 search-critical attributes and 5 title bands, in about 34 seconds. A second run added and removed nothing.
   - `compare:cdq-report` matched in all eight sections. All 1,509 imported scores show as not checked.
 - **In headless Chrome, with made-up data:** the summary and detail pages. The first screenshots caught the CONSIST column running off the table and the grade tiles wrapping onto two rows. Both were fixed and checked again.
+- **Verified live:** Lesley ran the imports on the server: 3,510 traffic rows and the same CDQ counts as locally. `compare:cdq-report` matched in all eight sections, with the same hashes as the local run.
 - **Not verified:** a live run of the CDQ tasks or of Anthropic. That needs the server's settings; the first scheduled run is Sunday 04:00 UTC.
 
 ### Open questions

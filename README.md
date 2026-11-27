@@ -239,6 +239,17 @@ Ported from the old app (plan section 5.3). Reads only.
 - **Page:** a summary of every ASIN (catalog, pull status, topic counts, top topics; sortable, filterable, CSV, Copy ASINs) and a detail page per ASIN (`?asin=`). Each topic is labelled positive or negative, with occurrence and star impact against the category, the 6-month trend, snippets and subtopics. The page has a Tutorial tour.
 - **Settings:** the SP-API settings from step 2 (`SP_API_SELLER_REFRESH_TOKEN` and the client ID and secret).
 
+### ASP Tracker (`/tools/asp-tracker` and `/tools/asp-tracker-bs`, `tool.asp-tracker`, `tool.asp-tracker-bs`)
+
+Ported from the old app (plan section 5.6): one tool per store, Canadian Protein and BioSteel. What each product and variant actually sold for after every discount, by day, week or month. Reads only, until cutover.
+
+- **Data:** every Shopify order line in `asp_sales_lines` (keyed on Shopify's line item ID), its discounts in `asp_line_discounts`, and pre-summed daily tables (`asp_daily_sales`, `asp_daily_discounts`) the page reads.
+- **Scheduled, per store:** `asp:process-pending` every minute (re-fetches queued orders), `asp:catch-up` nightly (queues orders updated in the last 48 hours; until cutover the only way orders reach this app, since no webhook points here), `asp:rebuild-rollups` nightly, and `asp:backfill`, **disabled until cutover**.
+- **Writes, run by hand and only after cutover:** the backfill's `bulkOperationRunQuery` and `asp:register-webhooks`' `webhookSubscriptionCreate`. Both go through `ExternalWrites` and refuse while `TOOLS_EXTERNAL_WRITES` is off.
+- **Webhooks:** `POST /webhooks/shopify/asp/cp` and `/bs`, each checked against its store's secret (`SHOPIFY_CP_WEBHOOK_SECRET`, `SHOPIFY_BS_WEBHOOK_SECRET`).
+- **Page:** filters (dates, day/week/month, product with search, variant, order type, channel, free items) and date presets; six headline figures; a key; ASP, product ASP and list ASP over time with units underneath (click a point, bar or period row for the discounts behind it); by-variant, by-product and by-period tables with CSV; how each number is worked out; data status; a Tutorial tour. The script is `resources/js/tools/asp-tracker.js`.
+- **Settings:** `SHOPIFY_CP_STORE`, `SHOPIFY_CP_ACCESS_TOKEN`, `SHOPIFY_STORE`, `SHOPIFY_ACCESS_TOKEN` (the brands in `config/combined_shipping.php`, shared with Combined Shipping later), and the two webhook secrets.
+
 ### CDQ Listing Quality Report (`/tools/cdq-report`, `tool.cdq-report`)
 
 Ported from the old app (plan section 5.5). Our own content quality score (0 to 100, deduction based) for every active Vendor Central ASIN. Reads only from Amazon.
@@ -283,7 +294,7 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-platf
 | `activity_log` | Matched on `legacy_id` (the old row's ID). This app's own entries are kept. Read 1,000 rows at a time with a short pause between |
 | `tools` | Matched by slug. The old app's order and active flag are copied onto tools already registered here. Tools not ported yet are not created. A renamed tool (`stockout` is now `biosteel-shopify-lost-sales`) takes the old slug's order and flag, and the old `tool.stockout` grants become `tool.biosteel-shopify-lost-sales` |
 | `teams`, `team_user` | Team IDs preserved. Each imported team's members are brought in line with the old app. A team name already used by a different ID here stops the import |
-| `scheduled_tasks` | Matched by command. The old app's enabled flag, schedule and timezone are copied onto tasks registered here; tasks not ported yet are not created. `asp:backfill` always stays disabled until cutover, and `stockout:prune-snapshots` always takes `stockout:snapshot-inventory`'s flag (decision 2026-12-02). Run history is not copied |
+| `scheduled_tasks` | Matched by command (`DISABLED_UNTIL_CUTOVER` by the command's name, so `asp:backfill CP` and `asp:backfill BS` both count). The old app's enabled flag, schedule and timezone are copied onto tasks registered here; tasks not ported yet are not created. `asp:backfill` always stays disabled until cutover, and `stockout:prune-snapshots` always takes `stockout:snapshot-inventory`'s flag (decision 2026-12-02). Run history is not copied |
 
 It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Each ported tool adds its own tables to it.
 
@@ -363,6 +374,26 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:cdq-report
 ```
 
 The eight `cdq_*` tables are mirrored with their IDs (`TableMirror`, in small batches for the large snapshot and schema rows), so the old app's rows replace this app's own Sunday runs. After the copy every score is the old app's, so `consist_checked_at` is cleared. `cdq_llm_cache` is only added to, never pruned: this app's Anthropic answers stay valid. The comparison hashes the eight tables in ID order, large documents by md5, and leaves out `consist_checked_at` and the cache.
+
+### `legacy:import-asp-tracker` and `compare:asp-tracker`
+
+```bash
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-asp-tracker --dry-run
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-asp-tracker
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:asp-tracker
+```
+
+The largest import (about 1.4 million lines). It works 1,000 orders at a time, each batch in its own short transaction with a pause between, so the shared server never holds one long transaction:
+
+| Table | How |
+| --- | --- |
+| `asp_sales_lines` | Upserted on the line item ID for every order the old app has. A line this app has for one of those orders and the old app doesn't is removed. Orders only this app has are left alone |
+| `asp_line_discounts` | Brought in line with the old app's for each of those orders (only the difference is written) |
+| `asp_pending_orders` | Upserted on (store, order ID) |
+| `asp_ingest_log` | An exact copy, IDs included. Without the old backfill rows, the backfill would start over at cutover |
+| `asp_daily_sales`, `asp_daily_discounts` | Rebuilt for both stores at the end, not copied |
+
+`--dry-run` reads and counts only and writes nothing. The comparison covers orders placed more than three days ago (`--days`), hashing lines, discounts and the rebuilt rollups as sets (`App\Legacy\MultisetHash`), since IDs differ between the apps.
 
 ## One-time commands
 

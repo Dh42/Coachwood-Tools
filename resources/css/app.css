@@ -266,6 +266,29 @@
         color: var(--text);
     }
 
+    /* The same control made of links (each option is a URL). */
+    .segmented.segmented-inline {
+        display: inline-grid;
+        width: max-content;
+    }
+
+    .segmented a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: var(--control-height-sm);
+        padding: 0 var(--space-4);
+        border-radius: var(--radius-pill);
+        color: var(--muted);
+        font: var(--weight-semibold) var(--text-xs) / 1 var(--font-sans);
+        text-decoration: none;
+    }
+
+    .segmented a[aria-current='true'] {
+        background: var(--surface-2);
+        color: var(--text);
+    }
+
     /* The same control built from radio inputs (forms that submit). */
     .radio-segmented {
         display: inline-grid;
@@ -654,6 +677,10 @@
         height: 14rem;
     }
 
+    .chart-box-short {
+        height: 8rem;
+    }
+
     .chart-box-lg {
         height: 18rem;
     }
@@ -776,6 +803,25 @@
        always a labelled badge too; the edge colour only repeats it. */
     .scope-card summary {
         cursor: pointer;
+    }
+
+    .scope-list.scope-list-flush {
+        padding: 0;
+    }
+
+    /* A table row that opens something (ASP Tracker periods). */
+    .table .row-link {
+        cursor: pointer;
+    }
+
+    .table .row-link:hover td,
+    .table .row-link:focus-visible td {
+        background: var(--surface-2);
+    }
+
+    .table .row-link:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
     }
 
     .scope-list {
@@ -1172,6 +1218,10 @@
     th[aria-sort='descending'] .sort-btn::after { content: '▼'; font-size: var(--text-2xs); }
 
     /* ---- Modal (native <dialog>) ---- */
+    .modal.modal-wide {
+        width: min(48rem, calc(100vw - var(--space-8)));
+    }
+
     .modal {
         border: 1px solid var(--border);
         border-radius: var(--radius-xl);
