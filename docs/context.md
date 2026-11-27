@@ -7,6 +7,31 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-28: step 3f, Admin > Google Sign-In
+
+### What changed
+Branch `phase-0/google-domains`. Slice 3f of the platform (plan section 3). Google sign-in itself came in 3b, so this is the domain list only.
+
+- **Admin > Google Sign-In** (`/admin/settings/google-domains`): the old controller, routes and names unchanged. You can list, add and remove domains. Domains are normalised to lower case, duplicates are rejected regardless of case, and adding or removing one is logged. The sidebar's Admin group links it (new `globe` icon).
+- **Warnings for the 3b behaviour:**
+  - With no domain, the page says nobody can sign in, admins included. The old page warned that any Google account was accepted, which stopped being true with found issue 28.
+  - Removing the last domain opens a dialog that says it locks everyone out. Removing one of several names who is affected.
+  - There is no server-side block on removing the last domain. The old tests remove the only domain directly, and people already signed in stay signed in, so an admin can add it back.
+
+### Test status
+215 tests passing on SQLite. Pint clean. `npm run build` passes. No migrations in this step.
+
+- **Carried over (8):** `GoogleDomainTest`. Seven cases are unchanged. The empty-state case now expects "Nobody can sign in with Google" instead of "accepts any Google account", because the behaviour changed on purpose in 3b.
+- **New:** `GoogleDomainPageTest` (5).
+
+### Verified locally
+In headless Chrome: the page with no domain (the red warning) and with two domains.
+
+### Next step
+- 3e (#12) was pushed and was waiting for CI when this started. This branch was started from it and moved onto `main` once it merged.
+- Lesley pushes this branch; it merges itself.
+- Then 3g: the Gmail transport, Admin > Mail settings and invitations (without password links, decision 2026-11-27).
+
 ## 2026-11-28: step 3e, Admin > Users, Teams and Activity
 
 ### What changed
