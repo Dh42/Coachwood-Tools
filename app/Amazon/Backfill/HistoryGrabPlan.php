@@ -18,6 +18,9 @@ use Carbon\CarbonImmutable;
  * It ends on 2025-01-04 so the week of 2024-12-29 overlaps the old app's
  * data, which lets Phase 1 check the two against each other.
  *
+ * Weekly inventory (productAvailability) is not included: Amazon keeps it
+ * for only 8 weeks.
+ *
  * Every query is one the old app or the probe has run successfully:
  * sales and costs (old NRP), traffic (old VC traffic), geography (old Geo
  * Sales, the province and city grains), and the probe's verified groups.
@@ -64,13 +67,9 @@ final class HistoryGrabPlan
             'weekly.orders' => $weekly(['orders' => [
                 'unfilledOrderedUnits', 'netOrderedGMS' => $amount, 'netShipmentGMS' => $amount, 'orderedUnitsWithRevenue' => $units,
             ]]),
-            'weekly.traffic_availability' => $weekly([
-                'traffic' => ['glanceViews', 'lostFeaturedOffer'],
-                'productAvailability' => [
-                    'sellThroughRate', 'sourceableROOS', 'sellableInTransitInventory', 'unsellableInTransitInventory',
-                    'sellableOnHandInventory' => $units, 'unsellableOnHandInventory' => $units, 'unhealthyInventory' => $units,
-                ],
-            ]),
+            // No productAvailability: Amazon keeps weekly inventory for only 8 weeks
+            // (verified live 2026-11-26), so late-2024 availability is gone.
+            'weekly.traffic' => $weekly(['traffic' => ['glanceViews', 'lostFeaturedOffer']]),
             'weekly.sourcing' => $weekly(['sourcing' => [
                 'confirmedUnits', 'mostRecentSubmitted', 'openPurchaseOrderQuantity', 'overallVendorLeadTime', 'procurableProductOOS',
                 'receivedFillRate', 'vendorConfirmationRate', 'netReceived' => $units,

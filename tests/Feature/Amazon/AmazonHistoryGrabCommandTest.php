@@ -59,8 +59,8 @@ class AmazonHistoryGrabCommandTest extends TestCase
         }
 
         // The rejected field was dropped and the rest still fetched.
-        $this->assertSame(['lostFeaturedOffer'], $manifest['weekly.traffic_availability']['fields_rejected']);
-        $this->assertStringNotContainsString('lostFeaturedOffer', $manifest['weekly.traffic_availability']['query']);
+        $this->assertSame(['lostFeaturedOffer'], $manifest['weekly.traffic']['fields_rejected']);
+        $this->assertStringNotContainsString('lostFeaturedOffer', $manifest['weekly.traffic']['query']);
 
         $this->assertSame(['periods' => 2, 'rows' => 2, 'period_range' => ['2024-12-01', '2024-12-14']], array_intersect_key($manifest['weekly.sales_costs'], array_flip(['periods', 'rows', 'period_range'])));
 
@@ -91,7 +91,7 @@ class AmazonHistoryGrabCommandTest extends TestCase
         $manifest = HistoryGrabRunner::manifest();
         $failedKey = array_keys($manifest)[2];
         $this->assertSame('fail', $manifest[$failedKey]['status']);
-        $this->assertSame('Start date must be no more than two years ago. [asin]', $manifest[$failedKey]['error']);
+        $this->assertSame('Exception while fetching data (/analytics_vendorAnalytics_2024_09_30/manufacturingView) : Weekly Inventory data is only available for 8 weeks, including the current week. [asin]', $manifest[$failedKey]['error']);
         $this->assertCount(9, $this->queries);
 
         $this->fatal = [];
@@ -139,7 +139,12 @@ class AmazonHistoryGrabCommandTest extends TestCase
         }
 
         if (str_starts_with($url, 'https://docs.test/error/')) {
-            return Http::response(json_encode(['errors' => [['message' => 'Start date must be no more than two years ago. '.self::ASIN]]]));
+            // Amazon's error document is a bare GraphQL errors array (seen live 2026-11-26).
+            return Http::response(json_encode([[
+                'message' => 'Exception while fetching data (/analytics_vendorAnalytics_2024_09_30/manufacturingView) : Weekly Inventory data is only available for 8 weeks, including the current week. '.self::ASIN,
+                'locations' => [['line' => 1, 'column' => 46]],
+                'path' => ['analytics_vendorAnalytics_2024_09_30', 'manufacturingView'],
+            ]]));
         }
         if (str_starts_with($url, 'https://docs.test/kiosk/')) {
             $line = fn (string $start, string $end) => json_encode(['startDate' => $start, 'endDate' => $end, 'metrics' => [[

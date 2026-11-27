@@ -136,7 +136,8 @@ final class HistoryGrabRunner
             $errorDocumentId = $body['errorDocumentId'] ?? null;
             $detail = $errorDocumentId ? $this->download($errorDocumentId, $refreshToken) : 'Query ended FATAL with no error document.';
             $decoded = json_decode($detail, true);
-            $message = is_array($decoded) ? ($this->errorText($decoded) ?: $detail) : $detail;
+            // The error document is a bare GraphQL errors array; accept {"errors": [...]} too.
+            $message = is_array($decoded) ? ($this->errorText(array_is_list($decoded) ? ['errors' => $decoded] : $decoded) ?: $detail) : $detail;
 
             return $entry + ['status' => 'fail', 'error' => $this->clip($message)];
         }

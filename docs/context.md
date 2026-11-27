@@ -7,6 +7,48 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-27: history grab run, traffic re-run
+
+### What changed
+Branch `phase-0/history-grab-traffic`.
+- **Plan:** `weekly.traffic_availability` is now `weekly.traffic`, with glance views and lost featured offer only. Amazon keeps weekly inventory (`productAvailability`) for only 8 weeks, so late-2024 availability can't be fetched.
+- **Bug fix, FATAL error text:** Amazon's error document is a bare GraphQL errors array, not `{"errors": [...]}`. The runner saved it as raw JSON. It now reads either shape. The feature test's fake now returns the live shape; it failed before the fix.
+- **README:** the fetch list says traffic, not traffic and availability.
+- **Merge on push.** Lesley asked for branches to merge themselves once CI passes, as in the other projects, without opening a pull request by hand.
+  - **CI:** `ci.yml` now runs on a push to any branch. The `pull_request` trigger is gone, so CI doesn't run twice.
+  - **Merging:** `auto-merge.yml` acts on a passing push run. It opens the pull request if the branch has none, then merges it and deletes the branch. The pull request is still the record of each step.
+  - **Skipped:** `wip/` branches, a draft pull request, the `hold` label, a branch behind `main`, and a commit that's no longer the branch head.
+  - **Repo setting needed:** "Allow GitHub Actions to create and approve pull requests". Without it, `gh pr create` fails.
+  - This is in the same pull request as the traffic fix, so only one pull request has to be opened by hand.
+
+### Test status
+52 tests, 253 assertions, passing on SQLite (parallel). Pint clean. The workflow YAML parses; the new auto-merge flow isn't verified live yet. It runs from `main`'s copy, so the first branch pushed after this merges tests it.
+
+### Verified live
+**First run on the server, 2026-11-27.** Amazon accepted dates from 2024-11-28. Eight of nine queries saved:
+
+| Query | Rows | Periods |
+| --- | --- | --- |
+| `daily.sales` | 2651 | 38 (2024-11-28 to 2025-01-04) |
+| `weekly.sales_costs` | 359 | 5 |
+| `weekly.orders` | 376 | 5 |
+| `weekly.sourcing` | 381 | 5 |
+| `weekly.customer_returns` | 83 | 5 |
+| `weekly.vendor_codes` | 390 | 5 |
+| `weekly.geo_province` | 3285 | 5 |
+| `weekly.geo_city` | 18227 | 5 (over 5 minutes to run) |
+
+- **Failed:** `weekly.traffic_availability` ended FATAL: "Weekly Inventory data is only available for 8 weeks, including the current week."
+- **Black Friday 2024 is saved,** in `daily.sales`. 2024-11-24 to 2024-11-27 had already aged out.
+- **Phase 1 note:** Data Kiosk weekly inventory can't be backfilled past 8 weeks. Inventory history must come from our own saved snapshots.
+
+### Open questions
+- None new. The manifest keeps the old failed `weekly.traffic_availability` entry; `weekly.traffic` replaces it.
+
+### Next step
+- Lesley turns on the repo setting. The last pull request opened by hand merges (auto); from then on, pushing a branch is enough. Lesley re-runs the command; only `weekly.traffic` is fetched. Week 2024-12-01 ages out around 2026-12-02.
+- Then step 3, the platform.
+
 ## 2026-11-27: finance role, auto-merge confirmed, history grab
 
 ### What changed

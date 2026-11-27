@@ -54,9 +54,26 @@ Parallel runs create `coachwood_tools_test_test_N` databases, so the user needs 
 
 No test may make a live call. `Tests\TestCase` calls `Http::preventStrayRequests()`, so any request not matched by `Http::fake()` fails the test.
 
-CI (`.github/workflows/ci.yml`) runs Pint, the Vite build, and the suite on SQLite and on MariaDB 10.11.14.
+CI (`.github/workflows/ci.yml`) runs on every push to every branch: Pint, the Vite build, and the suite on SQLite and on MariaDB 10.11.14.
 
-**Auto-merge.** `.github/workflows/auto-merge.yml` merges a pull request into `main`, and so deploys it, once CI passes on its latest commit. It also deletes the branch. To stop one merging, open it as a draft or add the `hold` label. A merge made this way does not re-run CI on `main`, because GitHub does not start workflows from its own token. The Plesk webhook still fires.
+**Shipping a change.** Make a branch from `main`, commit, and push it. Nothing else:
+1. CI runs on the branch.
+2. When it passes, `.github/workflows/auto-merge.yml` opens a pull request for the branch, titled with the latest commit's first line, and merges it into `main`. It also deletes the branch.
+3. The merge deploys through the Plesk webhook.
+
+A failing run merges nothing. Fix it and push again.
+
+**To stop a branch merging:**
+- name it `wip/...`, or
+- open its pull request yourself as a draft, or add the `hold` label, before CI finishes.
+
+**It also skips:**
+- a branch that is behind `main`. Rebase it, or merge `main` into it, and push again.
+- a commit that is no longer the branch's latest. The newer commit's run decides.
+
+Never push to `main` directly. Plesk deploys `main` whether or not CI passed.
+
+A merge made this way doesn't re-run CI on `main`, because GitHub doesn't start workflows from its own token. The Plesk webhook still fires.
 
 ## Deploying
 
@@ -119,7 +136,7 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan amazon:history-grab
 
 - **What it fetches:** nine read-only Data Kiosk queries, run one at a time:
   - daily sales
-  - weekly sales and costs, orders, traffic and availability, sourcing, returns
+  - weekly sales and costs, orders, traffic, sourcing, returns (not inventory: Amazon keeps weekly inventory for only 8 weeks)
   - weekly sales by vendor code, province and city
 - **Run time:** about one to two minutes per query.
 - **Output:** files go to `storage/app/private/amazon/history-2024/`. They stay on the server; Phase 1 loads them.
