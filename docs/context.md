@@ -7,6 +7,16 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-27: history grab complete, merge-on-push verified
+
+### Verified live
+- **History grab complete.** `weekly.traffic` saved with 798 rows over 5 weeks (2024-12-01 to 2025-01-04), with no fields rejected. All nine queries are now saved in `storage/app/private/amazon/history-2024/` on the server. Traffic has about twice as many rows as the sales queries, presumably because ASINs with glance views but no sales still appear (assumed, not checked).
+- **Merge-on-push works.** Lesley pushed `phase-0/platform-shell` without opening a pull request. After CI passed, `auto-merge.yml` opened #6 and merged it (`0c0006c`).
+
+### Next step
+- Lesley checks the new shell on tools.coachwoodgroup.com: switching themes and text size.
+- Then 3b: users, password login, profile, roles and Spatie permissions.
+
 ## 2026-11-27: step 3a, page shell and design tokens
 
 ### What changed
