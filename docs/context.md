@@ -7,6 +7,46 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-01: step 6, US Product Reviews
+
+### What changed
+Branch `phase-0/us-product-reviews`. Step 6 of the plan, section 5.3. The chart tooltips fix merged as #19; this branch was started on it while it waited for CI, then moved onto `main`.
+
+- **Backend, ported unchanged:** the six `feedback_*` tables (one migration, including the LONGBLOB raw-response columns), the six models, `FeedbackService`, `FeedbackController`, and `feedback:collect` and `feedback:collect-trends`. `SpApiClient` already had the two Customer Feedback calls from step 2.
+- **One change to the service:** an optional database connection, used only by `getLatestSummary()`, so the comparison can run the summary query against the old database. The default is this app's.
+- **Shared product lists:**
+  - New `products` and `sc_products` migrations in the old app's final shape, plus `Product` (with its factory) and `ScProduct`. The models' relations to unported tools come back with those tools.
+  - `legacy:import-products` mirrors both with their IDs, and is registered as a daily 00:30 UTC task, so the collectors' ASIN lists stay current without anyone running it. This is plan section 5, "Shared tables", made automatic.
+- **Registration:** the tool under "Amazon · Listings" (icon `star`, as in the design's sidebar), with its two Sunday collectors at the old schedules.
+- **Pages:** rebuilt on the design.
+  - Catalog and pull status are labelled badges.
+  - The scope notes are a collapsible card, open on the summary and closed on a detail page.
+  - Each topic card says Positive or Negative, with a matching coloured edge.
+  - The Tutorial tour is kept (decision 2026-11-29).
+  - The summary table sorts, filters, exports CSV and copies ASINs.
+- **`App\Legacy\TableMirror` (new):** makes tables here an exact copy of the old app's, IDs included: upsert on `id`, parents first, then delete rows the old app doesn't have, children first. Used by `legacy:import-products` and `legacy:import-us-product-reviews`.
+- **Plan change:** the plan said the reviews import preserves IDs and "must run before the collectors first run, to avoid ID clashes". That holds only for the first run: during shadow running both apps keep adding rows and their IDs would collide. Mirroring makes every run safe, and matches the plan's own rule that the old app's rows replace this app's shadow rows. Plan section 5.3 is updated.
+- **`compare:us-product-reviews`:** runs the summary query against both databases and hashes every row of the six tables, raw responses included (by md5). Counts and hashes only.
+
+### Test status
+421 tests, 1,439 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. The four new migrations roll back and re-apply on MariaDB. CI's steps were replayed on a clean copy without `.env`.
+
+- **Carried over unchanged (15):** `FeedbackTest` 6, `FeedbackServiceTest` 9.
+- **New:** `ImportProductsAndReviewsTest` 8, `UsProductReviewsPageTest` 3.
+
+### Verified locally
+- **Against the restored `tools_db` copy** (into a throwaway MariaDB, since removed):
+  - `legacy:import-products`: 200 products and 200 SC products.
+  - `legacy:import-us-product-reviews`: 3,286 raw snapshots, 3,394 topics, 3,434 subtopics, 4,753 snippets, 3,127 trend snapshots and 17,431 trend points, in about 13 seconds. A second run added and removed nothing.
+  - `compare:us-product-reviews` matched in all seven sections, including the summary page (239 ASINs).
+- **In headless Chrome, with made-up data:** the summary and detail pages. The detail screenshot caught the topic cards' coloured edge not showing: the rule was earlier in the stylesheet than `.card`. Fixed with a more specific selector, then checked again.
+- **Not verified:** a live collector run (it needs the server's SP-API seller token; the first scheduled run is Sunday 01:00 UTC).
+
+### Next step
+- Lesley pushes the branch; it merges itself.
+- **On the server:** `legacy:import-platform`, `legacy:import-products`, `legacy:import-us-product-reviews` (`--dry-run` first), then `compare:us-product-reviews`. Run the reviews import before Sunday 01:00 UTC if possible. Either way, re-running it later replaces whatever this app collected.
+- Then step 7: BioSteel Shopify Lost Sales (renamed from Stockout; decision D7, the old URL redirects).
+
 ## 2026-11-30: chart tooltips on hover
 
 ### Verified live (Lesley)

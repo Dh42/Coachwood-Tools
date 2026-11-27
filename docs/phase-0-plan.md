@@ -132,7 +132,7 @@ R = reads, W = writes. "Sync at cutover" names what the final sync must bring ac
 | Tables | 6 `feedback_*` tables. Reads `products` and `sc_products` |
 | Scheduled | `feedback:collect` Sunday 01:00, `feedback:collect-trends` Sunday 02:00 |
 | External | R: SP-API Customer Feedback for the US marketplace with the seller token, 1 request per second. No writes |
-| Import | IDs preserved, as the old import did. Must run before the collectors first run, to avoid ID clashes |
+| Import | IDs preserved, as the old import did. The import makes the six tables an exact copy of the old app's on every run (rows this app's shadow collectors wrote are replaced), so IDs can't clash (changed in step 6; see its context entry) |
 | Sync at cutover | Yes |
 
 ### 5.4 BioSteel Shopify Lost Sales (renamed from Stockout)
@@ -215,7 +215,7 @@ R = reads, W = writes. "Sync at cutover" names what the final sync must bring ac
 
 ### Shared tables the old app keeps owning in Phase 0
 
-- **`products` and `sc_products`.** These are read by four ported tools. They are maintained today by the Price Monitor and SC sync, which are rebuilt in later phases. They are imported read-only and refreshed by the sync command. Product editing stays in the old app until Phase 1 builds the catalog.
+- **`products` and `sc_products`.** These are read by four ported tools. They are maintained today by the Price Monitor and SC sync, which are rebuilt in later phases. They are imported read-only and refreshed by the sync command. Since step 6: `legacy:import-products` mirrors both with their IDs and is scheduled daily at 00:30 UTC. Product editing stays in the old app until Phase 1 builds the catalog.
 - **`vc_traffic_current`.** CDQ reads it for glance-view weights. It is imported as is, until Phase 1 replaces it with weekly metrics.
 
 ## 6. Shadow running, sync and cutover
