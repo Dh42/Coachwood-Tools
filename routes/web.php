@@ -24,6 +24,7 @@ Route::middleware('auth')->group(function () {
 require __DIR__.'/auth.php';
 require __DIR__.'/admin.php';
 require __DIR__.'/tools.php';
+require __DIR__.'/webhooks.php';
 
 // The shared components with made-up values. Never on the server.
 if (app()->environment('local', 'testing')) {

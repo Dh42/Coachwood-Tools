@@ -397,6 +397,38 @@ class ImportPlatformTest extends TestCase
         $this->assertTrue(ScheduledTask::where('command', 'activitylog:clean --force')->sole()->enabled, 'tasks only this app has are left alone');
     }
 
+    public function test_grants_and_settings_for_a_renamed_tool_move_to_its_new_name(): void
+    {
+        DB::connection('legacy')->table('permissions')->insert(['id' => 32, 'name' => 'tool.stockout', 'guard_name' => 'web']);
+        DB::connection('legacy')->table('model_has_permissions')->insert(['permission_id' => 32, 'model_type' => User::class, 'model_id' => 5]);
+        DB::connection('legacy')->table('tools')->insert(['name' => 'Stockout', 'slug' => 'stockout', 'url' => '/tools/stockout', 'active' => false, 'sort_order' => 22]);
+
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+
+        $this->assertTrue(User::findOrFail(5)->hasDirectPermission('tool.biosteel-shopify-lost-sales'));
+        $this->assertDatabaseMissing('permissions', ['name' => 'tool.stockout']);
+        $tool = Tool::where('slug', 'biosteel-shopify-lost-sales')->sole();
+        $this->assertFalse($tool->active);
+        $this->assertSame(22, $tool->sort_order);
+    }
+
+    public function test_the_snapshot_clean_up_runs_wherever_the_sweep_runs(): void
+    {
+        // The old app has the sweep on and its clean-up off (decision 2026-12-01).
+        DB::connection('legacy')->table('scheduled_tasks')->insert([
+            ['name' => 'Sweep', 'command' => 'stockout:snapshot-inventory', 'cron_expression' => '*/15 * * * *', 'timezone' => null, 'enabled' => true],
+            ['name' => 'Prune', 'command' => 'stockout:prune-snapshots', 'cron_expression' => '17 * * * *', 'timezone' => null, 'enabled' => false],
+        ]);
+
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+        $this->assertTrue(ScheduledTask::where('command', 'stockout:prune-snapshots')->sole()->enabled);
+
+        DB::connection('legacy')->table('scheduled_tasks')->where('command', 'stockout:snapshot-inventory')->update(['enabled' => false]);
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+        $this->assertFalse(ScheduledTask::where('command', 'stockout:snapshot-inventory')->sole()->enabled);
+        $this->assertFalse(ScheduledTask::where('command', 'stockout:prune-snapshots')->sole()->enabled);
+    }
+
     /** @return array<string, list<array<string, mixed>>> */
     private function newDatabaseRows(): array
     {

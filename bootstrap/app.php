@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\SignOutDisabledUsers;
+use App\Http\Middleware\VerifyShopifyWebhook;
 use App\Models\ScheduledTask;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
@@ -28,7 +29,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'verify.shopify-webhook' => VerifyShopifyWebhook::class,
         ]);
+
+        // Shopify webhooks are unauthenticated POSTs with no CSRF token;
+        // VerifyShopifyWebhook (HMAC over the raw body) protects them.
+        $middleware->validateCsrfTokens(except: ['webhooks/*']);
     })
     // The scheduler is database-driven (Admin > Scheduler), as in the old
     // app: the server's one cron entry runs `schedule:run` every minute, and

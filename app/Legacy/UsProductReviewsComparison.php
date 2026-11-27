@@ -22,7 +22,7 @@ final class UsProductReviewsComparison
     {
         $sections = [
             'Summary page' => fn (?string $connection) => array_map(
-                fn (array $row) => $this->normalise([...$row, 'top_negative_topic' => (array) ($row['top_negative_topic'] ?? []), 'top_positive_topic' => (array) ($row['top_positive_topic'] ?? [])]),
+                fn (array $row) => RowHasher::normalise([...$row, 'top_negative_topic' => (array) ($row['top_negative_topic'] ?? []), 'top_positive_topic' => (array) ($row['top_positive_topic'] ?? [])]),
                 (new FeedbackService(app(SpApiClient::class), $connection))->getLatestSummary(),
             ),
         ];
@@ -35,7 +35,7 @@ final class UsProductReviewsComparison
                         $row['raw_response_gz'] = $row['raw_response_gz'] === null ? null : md5($row['raw_response_gz']);
                     }
 
-                    return $this->normalise($row);
+                    return RowHasher::normalise($row);
                 })->all();
         }
 
@@ -43,41 +43,11 @@ final class UsProductReviewsComparison
         foreach ($sections as $name => $rows) {
             $old = $rows('legacy');
             $new = $rows(null);
-            $oldHash = $this->hash($old);
-            $newHash = $this->hash($new);
+            $oldHash = RowHasher::hash($old);
+            $newHash = RowHasher::hash($new);
             $out[] = ['section' => $name, 'old_rows' => count($old), 'new_rows' => count($new), 'old_hash' => $oldHash, 'new_hash' => $newHash, 'match' => $oldHash === $newHash];
         }
 
         return $out;
-    }
-
-    /**
-     * Every number to 4 decimal places and every date-time to the second,
-     * so MariaDB and SQLite render the same value the same way.
-     *
-     * @param  array<string, mixed>  $row
-     * @return array<string, mixed>
-     */
-    private function normalise(array $row): array
-    {
-        return array_map(function ($value) {
-            if (is_array($value)) {
-                return $this->normalise($value);
-            }
-            if ($value === null) {
-                return null;
-            }
-            if (is_numeric($value) && ! preg_match('/^[0-9a-f]{32}$/', (string) $value)) {
-                return number_format((float) $value, 4, '.', '');
-            }
-
-            return substr((string) $value, 0, 19);
-        }, $row);
-    }
-
-    /** @param  array<mixed>  $rows */
-    private function hash(array $rows): string
-    {
-        return substr(hash('sha256', json_encode($rows)), 0, 12);
     }
 }

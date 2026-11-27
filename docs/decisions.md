@@ -2,6 +2,14 @@
 
 Each entry records a decision that replaces or adds to a default in `docs/build-spec.md`. Where this file and the spec differ, this file wins. Newest first.
 
+## 2026-12-02: Lost Sales snapshot clean-up
+
+Decided by Lesley while porting BioSteel Shopify Lost Sales.
+
+| Topic | Decision | Replaces |
+| --- | --- | --- |
+| Snapshot clean-up | `stockout:prune-snapshots` (keeps 90 days) runs wherever `stockout:snapshot-inventory` runs, in shadow running and after. It is registered enabled, and the platform import gives it the sweep's enabled flag instead of copying the old app's (off). The sweep writes about 333,000 rows a day to a table nothing reads yet | Plan 5.4 "enabled flags copied from the old app" (the old app has the sweep on and the clean-up off) |
+
 ## 2026-11-29: tutorial tours
 
 Decided by Lesley while porting BioSteel App Stats.
