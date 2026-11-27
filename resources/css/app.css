@@ -450,6 +450,38 @@
         cursor: pointer;
     }
 
+    .icon-btn-sm {
+        width: var(--control-height-sm);
+        height: var(--control-height-sm);
+    }
+
+    .drag-handle {
+        display: inline-flex;
+        vertical-align: middle;
+        color: var(--faint);
+        cursor: grab;
+        touch-action: none;
+    }
+
+    .drag-handle:active {
+        cursor: grabbing;
+    }
+
+    .sortable-fallback {
+        background: var(--surface-2);
+        box-shadow: var(--shadow-overlay);
+        opacity: 0.9;
+    }
+
+    /* An emoji tool icon (the old app's tools), sized like the stroke icons. */
+    .tool-emoji {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--icon-md);
+        line-height: 1;
+    }
+
     .icon-btn:hover {
         color: var(--text);
         background: var(--surface-2);
@@ -505,6 +537,27 @@
         gap: var(--space-1);
         font-size: var(--text-xs);
         color: var(--bad);
+    }
+
+    .textarea {
+        height: auto;
+        padding: var(--space-2) var(--space-3);
+        line-height: var(--leading-body);
+        resize: vertical;
+    }
+
+    .check {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--text-sm);
+        cursor: pointer;
+    }
+
+    .check input {
+        width: var(--icon-md);
+        height: var(--icon-md);
+        accent-color: var(--accent);
     }
 
     .form-stack {

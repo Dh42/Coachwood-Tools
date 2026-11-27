@@ -3,7 +3,9 @@
 namespace Tests\Feature\Legacy;
 
 use App\Models\GoogleWorkspaceDomain;
+use App\Models\Tool;
 use App\Models\User;
+use App\Tools\ToolRegistry;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +22,7 @@ class ImportPlatformTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const OLD_TABLES = ['users', 'roles', 'permissions', 'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'google_workspace_domains', 'activity_log'];
+    private const OLD_TABLES = ['users', 'roles', 'permissions', 'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'google_workspace_domains', 'activity_log', 'tools'];
 
     protected function setUp(): void
     {
@@ -56,6 +58,17 @@ class ImportPlatformTest extends TestCase
         $schema->create('google_workspace_domains', function (Blueprint $t) {
             $t->id();
             $t->string('domain');
+            $t->timestamps();
+        });
+        $schema->create('tools', function (Blueprint $t) {
+            $t->id();
+            $t->string('name');
+            $t->text('description')->nullable();
+            $t->string('slug')->unique();
+            $t->string('icon')->nullable();
+            $t->string('url')->nullable();
+            $t->boolean('active')->default(true);
+            $t->unsignedInteger('sort_order')->default(0);
             $t->timestamps();
         });
         $schema->create('activity_log', function (Blueprint $t) {
@@ -97,6 +110,10 @@ class ImportPlatformTest extends TestCase
             ['permission_id' => 30, 'role_id' => 7],
         ]);
         $old->table('google_workspace_domains')->insert([['domain' => 'example.test']]);
+        $old->table('tools')->insert([
+            ['name' => 'Ported Tool', 'slug' => 'ported-tool', 'url' => '/tools/ported-tool', 'active' => false, 'sort_order' => 9],
+            ['name' => 'Not Ported Yet', 'slug' => 'not-ported-yet', 'url' => '/tools/not-ported-yet', 'active' => true, 'sort_order' => 2],
+        ]);
         $old->table('activity_log')->insert([
             ['id' => 1, 'log_name' => 'auth', 'description' => 'Login succeeded', 'causer_type' => User::class, 'causer_id' => 3, 'properties' => '{"method":"google"}', 'created_at' => '2026-10-01 09:00:00', 'updated_at' => '2026-10-01 09:00:00'],
             ['id' => 2, 'log_name' => 'admin', 'description' => 'Tool created', 'causer_type' => User::class, 'causer_id' => 3, 'properties' => '[]', 'created_at' => '2026-10-02 09:00:00', 'updated_at' => '2026-10-02 09:00:00'],
@@ -235,6 +252,7 @@ class ImportPlatformTest extends TestCase
                 ['model_has_permissions', 1, 1, 0, 0],
                 ['role_has_permissions', 1, 1, 0, 0],
                 ['activity_log', 2, 2, 0, 0],
+                ['tools', 2, 0, 0, 0],
             ])
             ->assertSuccessful();
     }
@@ -254,6 +272,7 @@ class ImportPlatformTest extends TestCase
                 ['model_has_permissions', 1, 0, 0, 0],
                 ['role_has_permissions', 1, 0, 0, 0],
                 ['activity_log', 2, 0, 2, 0],
+                ['tools', 2, 0, 0, 0],
             ])
             ->assertSuccessful();
     }
@@ -277,6 +296,21 @@ class ImportPlatformTest extends TestCase
         $this->assertSame(3, (int) $copied->causer_id);
         $this->assertSame('2026-10-01 09:00:00', (string) $copied->created_at);
         $this->assertSame('google', json_decode($copied->properties, true)['method']);
+    }
+
+    public function test_it_copies_the_old_order_and_active_flag_onto_tools_registered_here_only(): void
+    {
+        ToolRegistry::register(['slug' => 'ported-tool', 'name' => 'Ported Tool', 'group' => 'Group set here', 'url' => '/tools/ported-tool']);
+
+        $this->artisan('legacy:import-platform')
+            ->expectsOutputToContain('Import complete.')
+            ->assertSuccessful();
+
+        $tool = Tool::where('slug', 'ported-tool')->sole();
+        $this->assertFalse($tool->active);
+        $this->assertSame(9, $tool->sort_order);
+        $this->assertSame('Group set here', $tool->group);
+        $this->assertDatabaseMissing('tools', ['slug' => 'not-ported-yet']);
     }
 
     /** @return array<string, list<array<string, mixed>>> */

@@ -26,8 +26,11 @@ use Spatie\Permission\PermissionRegistrar;
  * - the permissions given to each role, re-mapped the same way
  * - the activity log (3c), matched on `legacy_id`, the old row's ID. This
  *   app's own rows are never touched. Read in chunks with a pause between
+ * - tools (3d), matched by slug: the old app's order and active flag are
+ *   copied onto tools already registered here. Tools not ported yet are
+ *   not created; their links would lead nowhere in this app
  *
- * Later slices add tools, teams and scheduled tasks.
+ * Later slices add teams and scheduled tasks.
  * It reports counts only, never names, emails or other values.
  */
 final class PlatformImporter
@@ -74,6 +77,7 @@ final class PlatformImporter
             $this->importGrants('model_has_permissions', 'permission_id', $permissions, $userIds);
             $this->importRolePermissions($roles, $permissions);
             $this->importActivityLog();
+            $this->importToolOrder();
         } catch (\Throwable $e) {
             $this->db->rollBack();
 
@@ -262,6 +266,20 @@ final class PlatformImporter
         });
 
         $this->report['activity_log'] = $report;
+    }
+
+    private function importToolOrder(): void
+    {
+        $old = $this->legacy->table('tools')->get(['slug', 'active', 'sort_order']);
+        $updated = 0;
+
+        foreach ($old as $row) {
+            $updated += $this->db->table('tools')->where('slug', $row->slug)
+                ->where(fn ($query) => $query->where('active', '!=', (bool) $row->active)->orWhere('sort_order', '!=', (int) $row->sort_order))
+                ->update(['active' => (bool) $row->active, 'sort_order' => (int) $row->sort_order, 'updated_at' => now()]);
+        }
+
+        $this->report['tools'] = ['read' => $old->count(), 'new' => 0, 'updated' => $updated, 'removed' => 0];
     }
 
     /**

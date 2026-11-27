@@ -7,6 +7,40 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-28: step 3d, tools registry and launcher
+
+### What changed
+Branch `phase-0/tools-registry`. Slice 3d of the platform (plan section 3). 3c merged as #10 and is deploying.
+
+- **`tools` table:** the old app's three migrations folded into one, plus a new nullable `group` column. The design groups the sidebar and launcher ("Amazon · Pricing", "BioSteel Teams"); the old table had no grouping. Tools without a group show under "Tools".
+- **Icons:** a tool's `icon` can be an `App\View\Icons` name (the design's stroke icons) or any other text, such as the old app's emoji. `<x-tool-icon>` draws one or shows the other. New icons: `chevron-up`, `chevron-down`, `grip`.
+- **Self-registration (`App\Tools\ToolRegistry`):**
+  - `register()` inserts the tool and its `tool.<slug>` permission and never overwrites an existing row. A new tool goes to the end of the order.
+  - `unregister()` removes the tool, its permission and its grants.
+  - It uses the query builder, so old migrations keep working as the models change.
+  - The old app wrote raw inserts in each tool's migration.
+- **Launcher (`/dashboard`):** the design's "All tools" section, grouped. It shows an empty state for someone with no tools. The design's "Needs attention" and KPI rows come later, from the tools themselves.
+- **Sidebar:** Home, then the user's tools by group (the current one marked), then Admin for admins.
+- **Admin > Tools:** the old controller, routes and names, plus `group`, with the old SortableJS drag reordering. New: Move up and Move down buttons that work from the keyboard, with a screen-reader announcement and a toast. A failed save puts the rows back. Deleting a tool uses `<x-modal>`.
+- **Spatie middleware aliases** (`role`, `permission`, `role_or_permission`), as in the old app. `/admin/*` is behind `role:admin`.
+- **Import:** `legacy:import-platform` copies each old tool's order and active flag onto tools registered here, matched by slug. It does not create tools that aren't ported yet, because their links would lead nowhere in this app. All 26 old tools are active.
+
+### Test status
+174 tests, 660 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. The tools migration rolls back and re-applies on MariaDB.
+
+- **Carried over unchanged (16):** `ToolManagementTest` 10, `ToolPermissionGatingTest` 5, and the tool case of the old `Admin\ActivityLogTest`. That file gains its other cases in 3e and 3g.
+- **New:** `ToolRegistryTest` (13) and one `ImportPlatformTest` case. A `tools` row is added to the two import count-table cases.
+
+### Verified locally
+In headless Chrome, with made-up tools: the launcher with four groups (including an emoji-icon tool under "Tools") and Admin > Tools.
+
+**Not verified:** dragging and the Move buttons in a real browser. The reorder endpoint is covered by the ported tests; the script is not.
+
+### Next step
+- Lesley pushes the branch; it merges itself.
+- There are no tools here yet, so the launcher shows its empty state until the first tool is ported (step 4). Admins can try Admin > Tools now.
+- Then 3e: Admin > Users, Teams and Activity.
+
 ## 2026-11-28: step 3c, activity log; 3b live
 
 ### Verified live (3b, reported by Lesley)

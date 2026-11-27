@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PreferencesController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Auth;
@@ -9,8 +10,7 @@ Route::get('/', function () {
     return redirect()->route(Auth::check() ? 'dashboard' : 'login');
 })->name('home');
 
-// The launcher arrives with the tools registry (3d).
-Route::view('/dashboard', 'dashboard')
+Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware('auth')
     ->name('dashboard');
 
@@ -22,6 +22,7 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
+require __DIR__.'/admin.php';
 
 // The shared components with made-up values. Never on the server.
 if (app()->environment('local', 'testing')) {

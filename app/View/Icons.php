@@ -40,8 +40,16 @@ final class Icons
         'copy' => 'M9 9h11v11H9zM5 15H4V4h11v1',
         'menu' => 'M4 6h16M4 12h16M4 18h16',
         'chevrons' => 'M8 9l4-4 4 4M8 15l4 4 4-4',
+        'chevron-up' => 'M6 15l6-6 6 6',
+        'chevron-down' => 'M6 9l6 6 6-6',
+        'grip' => 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
         'logout' => 'M15 4h4v16h-4M10 17l5-5-5-5M15 12H3',
     ];
+
+    public static function has(?string $name): bool
+    {
+        return $name !== null && isset(self::PATHS[$name]);
+    }
 
     public static function path(string $name): string
     {
