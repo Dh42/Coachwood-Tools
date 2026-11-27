@@ -106,6 +106,27 @@ php artisan amazon:probe --only=report.traffic        # re-run one capability
 - **Summary,** safe to share: `storage/app/private/probe/summary.json`. It holds statuses, error codes, which fields came back and how often they are empty, and the ranges of rate fields. It contains no ASINs, amounts, IDs or credentials.
 - **Raw responses** are in `storage/app/private/probe/raw/`. They stay on the server and are deleted after Phase 1.
 
+### `amazon:history-grab` (one-off, late 2024)
+
+This saves Data Kiosk history from before the old app's weekly data starts on 2024-12-29. Amazon refuses dates more than two years back, so these days age out one by one:
+- Black Friday 2024 goes after 2026-11-28
+- the last whole week, 2024-12-29 to 2025-01-04, goes in early January 2027
+
+```bash
+php artisan amazon:history-grab --list     # the queries and dates; calls nothing
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan amazon:history-grab --no-interaction
+```
+
+- **What it fetches:** nine read-only Data Kiosk queries, run one at a time:
+  - daily sales
+  - weekly sales and costs, orders, traffic and availability, sourcing, returns
+  - weekly sales by vendor code, province and city
+- **Run time:** about one to two minutes per query.
+- **Output:** files go to `storage/app/private/amazon/history-2024/`. They stay on the server; Phase 1 loads them.
+- **Safe to send:** `manifest.json`, which holds the queries, statuses and counts.
+- **Failures:** running the command again fetches only what failed.
+- **Safety:** nothing is written to the database. The client refuses any write.
+
 ## Documents
 
 | File | Purpose |

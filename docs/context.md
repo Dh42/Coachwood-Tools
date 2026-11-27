@@ -7,6 +7,43 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-27: finance role, auto-merge confirmed, history grab
+
+### What changed
+Branch `phase-0/history-grab`.
+- **New command, `amazon:history-grab`,** a one-off. It saves Data Kiosk history from before 2024-12-29 while Amazon's two-year limit still allows it. Lesley chose this on 2026-11-26 (open question 2 of the probe results).
+- **What it fetches:** nine queries, run one at a time:
+  - daily sales from the earliest day allowed (Black Friday 2024 is included if it runs by 2026-11-28 UTC)
+  - weekly from 2024-12-01: sales and costs, orders, traffic and availability, sourcing, returns, vendor codes, province, city
+- **Overlap:** both grains end on 2025-01-04, so the week of 2024-12-29 overlaps the old app's data and Phase 1 can check them against each other.
+- **Fields:** every query uses fields the old app or the probe has run successfully.
+- **Storage:**
+  - raw documents, gzipped, in `storage/app/private/amazon/history-2024/`
+  - a manifest of queries, statuses and counts
+  - nothing in the database
+  - a re-run fetches only what failed
+- **Code:** `App\Amazon\Backfill\HistoryGrabPlan` and `HistoryGrabRunner`. They reuse the probe's read-only `ProbeClient` and `DataKioskQuery`. `ProbeClient`'s refusal message no longer names `amazon:probe`.
+- **README:** a "One-time commands" entry.
+
+### Test status
+51 tests, 199 assertions, all passing on SQLite and on local MariaDB 10.11.14 (parallel). Pint clean. The command hasn't run against Amazon yet.
+
+### Verified live
+- **Auto-merge works.** The `docs/probe-follow-up` pull request passed CI, and `github-actions[bot]` merged it and deleted the branch, with no clicks. The previous docs commit went to `main` directly, because a branch I created tracked `origin/main`. Branches are now created with `--no-track`.
+- **Finance and Accounting role.** Amazon approved it for the developer profile, and it's on the Listing Optimizer app under Sellers and Vendors. Lesley re-authorized the vendor account, and the new refresh token is in the `.env` of both apps.
+- **Finance Remittance passes** (2026-11-27 00:38 UTC):
+  - **`getRemittanceHeaders`:** 50 rows dated 2026-10-22 to 2026-11-25. Asked for 90 days, so 50 is probably one page and Phase 1 must page through. 62% of payment amounts are zero.
+  - **`getRemittance`:** 3 line items for one payment, with invoice number, type, date, totals, net paid, two breakdown types and related identifiers. Amounts can be negative. Withholding is always zero.
+- **Result:** the Deductions Tracker can use the API (spec 12.1). The upload stays as the fallback.
+
+### Assumed
+- Each Data Kiosk query finishes in one to two minutes, as in the probe.
+- The city grain stays a manageable size over five weeks. The old app notes that geography rows are close to order level.
+
+### Next step
+- Merge (auto). Then Lesley runs `amazon:history-grab` on the server by Saturday 2026-11-28 UTC and sends back `manifest.json`.
+- Then step 3, the platform.
+
 ## 2026-11-26: Amazon probe results
 
 ### What changed
