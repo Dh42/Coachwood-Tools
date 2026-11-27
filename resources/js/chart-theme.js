@@ -10,6 +10,8 @@
  * keeps its axes, legend and dataset colours in step with the theme.
  * Datasets are coloured by position from the six-colour series palette,
  * unless a dataset sets its own colour or `toneKey` ('good', 'bad', ...).
+ * Every chart gets hover tooltips (anywhere along the axis) styled from the
+ * theme; numbers show with thousands separators (Chart.js's own format).
  */
 import { Chart } from 'chart.js/auto';
 
@@ -74,6 +76,28 @@ function applyDefaults() {
     Chart.defaults.color = theme.muted;
     Chart.defaults.borderColor = theme.grid;
     Chart.defaults.font.family = theme.fontFamily;
+
+    // Tooltips on hover anywhere along the axis, not only on the exact point:
+    // line charts draw no points, so Chart.js's default (pointer on the
+    // point) almost never fired. A dot marks the hovered point.
+    Chart.defaults.interaction.mode = 'index';
+    Chart.defaults.interaction.intersect = false;
+    Chart.defaults.elements.point.hoverRadius = 4;
+    Chart.defaults.elements.point.hitRadius = 6;
+
+    const tooltip = Chart.defaults.plugins.tooltip;
+    tooltip.backgroundColor = theme.surface;
+    tooltip.titleColor = theme.text;
+    tooltip.bodyColor = theme.text;
+    tooltip.footerColor = theme.muted;
+    tooltip.borderColor = theme.grid;
+    tooltip.borderWidth = 1;
+    tooltip.padding = 10;
+    tooltip.cornerRadius = 8;
+    tooltip.boxPadding = 4;
+    tooltip.usePointStyle = true;
+    tooltip.titleFont = { family: theme.fontFamily, weight: '600' };
+    tooltip.bodyFont = { family: theme.fontFamily };
 }
 
 export function themedChart(element, config) {
@@ -82,6 +106,10 @@ export function themedChart(element, config) {
     // created with until a full update, so colouring afterwards with
     // update('none') left them Chart.js's default grey.
     colorDatasets(config.data?.datasets ?? [], config.type, chartTheme());
+    // Horizontal bars: hovering anywhere along a row shows that row's tooltip.
+    if (config.options?.indexAxis === 'y') {
+        config.options.interaction = { axis: 'y', ...config.options.interaction };
+    }
     const chart = new Chart(element, config);
     applyChartTheme(chart);
     onThemeChange((theme) => {
