@@ -52,6 +52,15 @@ class HistoryGrabPlanTest extends TestCase
         $this->assertSame(['asin', 'shipToCountryCode', 'shipToStateOrProvince', 'shipToCity'], $plan['weekly.geo_city']->groupBy);
         $this->assertSame(['vendorCode', 'asin'], $plan['weekly.vendor_codes']->groupBy);
         $this->assertContains('costs.netPPM', $plan['weekly.sales_costs']->fields());
-        $this->assertContains('traffic.lostFeaturedOffer', $plan['weekly.traffic_availability']->fields());
+        $this->assertContains('traffic.lostFeaturedOffer', $plan['weekly.traffic']->fields());
+    }
+
+    public function test_it_asks_for_no_weekly_inventory_which_amazon_keeps_for_only_8_weeks(): void
+    {
+        foreach (HistoryGrabPlan::build(CarbonImmutable::parse('2026-11-27 15:00:00', 'UTC')) as $key => $query) {
+            foreach ($query->fields() as $field) {
+                $this->assertStringStartsNotWith('productAvailability.', $field, $key);
+            }
+        }
     }
 }

@@ -1,9 +1,12 @@
 name: CI
 
+# Runs on every push to every branch. A passing run on a branch other than
+# main is what auto-merge.yml acts on. There is no pull_request trigger: the
+# push run already reports on the branch's commit, so it would only run twice.
 on:
   push:
-    branches: [main]
-  pull_request:
+    branches: ['**']
+  workflow_dispatch:
 
 permissions:
   contents: read
