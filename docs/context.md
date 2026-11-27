@@ -7,6 +7,31 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-30: chart tooltips on hover
+
+### Verified live (Lesley)
+- The line-chart scale fix (#18) works: the users and teams lines show the daily growth again.
+- Google Analytics not loading was a typo in the key file's name. Fixed by Lesley; `team-app-stats:check` was available to confirm it.
+- **New report:** the charts showed no tooltips on hover. They need them.
+
+### What changed
+Branch `fix/chart-tooltips`, in the shared chart helper (`resources/js/chart-theme.js`), so every chart in every tool gets it:
+- **Hover anywhere along the axis** shows that point's tooltip (`interaction: index`, `intersect: false`). Chart.js's default needs the pointer on the point itself, and the line charts draw no points, so it almost never fired. Horizontal bar charts use the vertical axis. A dot marks the hovered point.
+- **Tooltips are styled from the theme tokens** (surface, text, border), so they read well in all four themes. Numbers show with thousands separators.
+
+### Verified locally
+Headless Chrome driven over the DevTools protocol with real mouse moves, a page of made-up App Stats data:
+- users, teams and growth charts: tooltip with that day's value (for example "27,180")
+- sport bars: hovering the row shows "SOCCER 1,117"
+- ads chart: both series ("Ad requests: 1,500 / Impressions: 1,000")
+
+### Test status
+395 tests passing; JavaScript only, so no PHP test changed. Pint clean. `npm run build` passes.
+
+### Next step
+- Lesley pushes the branch; it merges itself.
+- Then step 6: US Product Reviews.
+
 ## 2026-11-30: App Stats chart scale, connection check; steps 4 and 5 verified live
 
 ### Verified live (Lesley, on the server)
