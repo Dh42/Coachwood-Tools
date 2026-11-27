@@ -10,8 +10,8 @@ Labels follow the old practice:
 ## 2026-11-26: Amazon probe results
 
 ### What changed
-- **The probe ran on the server** at 2026-11-26 15:16 UTC, covering all 25 capabilities. Earlier the same day, a run with `--only=report.traffic` also passed.
-- **Results:** 20 pass, 1 empty, 1 fail, 1 rate limited, 1 role missing, 1 skipped. They are in the server's `amazon_capabilities` table and in `summary.json`. The summary is not committed.
+- **The probe ran on the server** at 2026-11-26 15:16 UTC, covering all 25 capabilities. Earlier the same day, a run with `--only=report.traffic` also passed. Data Kiosk product availability was rate limited in the full run and passed on its own at 23:51 UTC.
+- **Results:** 21 pass, 1 empty, 1 fail, 1 role missing, 1 skipped. They are in the server's `amazon_capabilities` table and in `summary.json`. The summary is not committed.
 - **First deploy confirmed:** the site serves the placeholder home page. `APP_KEY` was generated on the server with `key:generate --force`.
 - No code changed.
 
@@ -82,9 +82,15 @@ Differences between views and fields:
 | --- | --- | --- |
 | Finance Remittance headers | 403 Unauthorized | The app lacks the Finance and Accounting role. The spec expected this (section 8). |
 | Finance Remittance detail | skipped | It needs an ID from the headers call. |
-| Data Kiosk product availability | 429 twice | Data Kiosk's query quota. Re-run on its own. It still holds the `sourceableROOS` scale question. |
 | Data Kiosk 2023 history | fail | The two-year limit. |
 | Coupon performance report | empty | The report works, but there were no coupons in 12 months. |
+
+### Product availability (re-run, verified live)
+- 648 rows, 162 ASINs, 4 weeks. No fields rejected.
+- **`sourceableROOS` is a 0–1 fraction:** range 0 to 1, zero on 91% of rows. The old code's unverified assumption was right.
+- **`ultraFastTrack` is 0 on every row,** so it carries no signal for this account.
+- **In-transit inventory works.** `sellableInTransitInventory` and `unsellableInTransitInventory` are filled on 80% of rows, the same rows as on-hand inventory.
+- `sellThroughRate` matches the inventory report: −0.04 to 3.5.
 
 ### Assumed
 - `UNKNO` is Amazon's placeholder for an unattributed vendor code. Not confirmed with Amazon.
@@ -94,17 +100,23 @@ Differences between views and fields:
 In `summary.json`, when an object such as `shippedOrders` is null on some rows, its own entry shows `empty_rate: 1`. The rates on its child fields are the accurate ones. This affects nothing outside the summary.
 
 ### Open questions for Lesley
-1. **Finance and Accounting role.** Adding it to the SP-API app and re-authorizing the vendor account issues a new vendor refresh token. That token goes into both apps' `.env`. Without the role, the Deductions Tracker uses the remittance upload (spec 12.1).
+1. **Finance and Accounting role.** Lesley wants it (2026-11-26). The app's role list (Listing Optimizer) doesn't offer it under Vendors or Sellers, so the developer profile has to request it from Amazon first. Then:
+   - tick it on the app
+   - re-authorize the vendor account, which issues a new vendor refresh token
+   - put that token in both apps' `.env`
+   - re-run the two Finance Remittance checks
+
+   Until then, the Deductions Tracker uses the remittance upload (spec 12.1).
 2. **History before 2024-12-29.** The old database's weekly data starts on 2024-12-29. Data Kiosk can still return:
    - the four weeks from 2024-12-01 to 2024-12-28, the run-up to Christmas 2024
    - Black Friday and Cyber Monday 2024, at daily grain only, for a few more days
 
    The two-year limit drops a day each day. The first of those weeks goes on 2026-12-01 and the last in late December 2026. Grabbing them needs a small one-off read-only command that saves the raw documents for Phase 1.
-3. **Suspended listings** in one seller marketplace. Worth a look in Seller Central.
+3. **Suspended listings:** answered. They are on the Amazon.ca seller account, which BioSteel doesn't really use (Canada sells through Vendor Central, the US through Seller Central). No action needed.
 
 ### Next step
-- Re-run `data_kiosk.product_availability` on its own.
-- Lesley answers the open questions.
+- Lesley requests the Finance and Accounting role.
+- Decide on the December 2024 history grab (question 2).
 - Then step 3, the platform.
 
 ## 2026-11-25: auto-merge
