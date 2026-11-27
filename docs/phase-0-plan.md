@@ -57,7 +57,7 @@ Ported in this order, from the platform inventory:
 | 3d | Tools registry, the home launcher, Admin > Tools with drag ordering, the self-registration convention | 16 (`ToolManagementTest` 10, `ToolPermissionGatingTest` 5, the tool case of `ActivityLogTest`) |
 | 3e | Admin > Users, Teams and Activity. Inviting users (create, store, resend) moves to 3g with mail | 10 (`UserManagementTest` 5, `TeamManagementTest` 3, two `ActivityLogTest` cases). `AccountDeactivationTest` came in 3c |
 | 3f | Admin > Google Sign-In (the domain list). Google sign-in itself moved to 3b | 8 (`GoogleDomainTest`; its empty-state case changed on purpose after found issue 28) |
-| 3g | Gmail transport, Admin > Mail settings, invitations (no password link, decision 2026-11-27) | 11 |
+| 3g | Gmail transport, Admin > Mail settings, invitations (no password link, decision 2026-11-27) | 12 (`UserInvitationTest` 11 and the invitation case of `ActivityLogTest`). The password-link cases changed or were removed, see the context entry |
 | 3h | Database scheduler, run history, "Run Now", failure emails, heartbeat, the single cron entry | 10 |
 
 Routes, names and permissions stay as listed in the platform inventory (`/admin/*` behind `role:admin`, `/dashboard`, `/auth/google/*`, no registration route).

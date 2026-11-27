@@ -79,6 +79,12 @@ return [
             'transport' => 'array',
         ],
 
+        // Sends through the Gmail account connected in Admin > Mail settings
+        // (App\Mail\Transport\GmailApiTransport), as the old app did.
+        'gmail_api' => [
+            'transport' => 'gmail_api',
+        ],
+
         'failover' => [
             'transport' => 'failover',
             'mailers' => [

@@ -7,6 +7,53 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-29: step 3g, mail and invitations
+
+### What changed
+Branch `phase-0/mail-invitations`. Slice 3g of the platform (plan section 3). It was started from the 3f commit while 3f waited for CI, and moved onto `main` once 3f merged.
+
+- **Gmail transport:** the old `GmailApiTransport`, `gmail_connections` table and `GmailConnection` model. The refresh token is encrypted with `APP_KEY`, as before. `Mail::extend('gmail_api')` is in `AppServiceProvider`, and the `gmail_api` mailer is in `config/mail.php`. The old connection is not imported (plan section 3), so it must be reconnected.
+- **Admin > Mail** (`/admin/settings/mail`): the old controller and routes. Connect asks Google for `gmail.send` only, offline, with consent. Reconnect and Send Test Email are there too. The sidebar links it (new `mail` icon).
+- **Invitations (Google only, decision 2026-11-27):**
+  - Only addresses on a company domain can be invited; others get a form error naming Admin > Google Sign-In.
+  - Every invitation is the old "Sign in with Google" email, without its "Tutorial button" line (the new pages have no tutorial).
+  - `UserInvitationNotification` (the password link) is not ported.
+  - Resend invite is refused, with a message, for a pending address outside the company domains (an imported external account).
+  - A failed send still leaves the person set up and says why, as before.
+- **Users list:** an Invite User button, and Resend invite on rows for people who haven't signed in yet.
+- **Fixes** (`docs/found-issues.md`):
+  - **19:** the test-email button showed a 500 when Gmail failed; it now shows the error. A rejected (401) cached access token is dropped and the send retried once, instead of failing for up to 55 minutes. Both tests failed on the old code first.
+  - **10:** gone, since there is no invitation link to expire.
+
+### Test status
+239 tests, 873 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. The `gmail_connections` migration rolls back and re-applies on MariaDB.
+
+**`UserInvitationTest`** (ported):
+- **Unchanged:** the two company-domain invite cases, the company resend, the resend failure, the two permission-cache cases and the admin-only case.
+- **Changed on purpose:**
+  - "invite an external user" became "invite a colleague with tools and teams" (company address, Google email).
+  - "resend regenerates token" became "resend sends again" with a company address.
+  - The failed-invitation case uses a company address.
+- **Removed:** "set a password via the emailed link".
+- **Added:** "an outside address can't be invited" and "resend to an outside address explains why not".
+
+The old assertions that the password-link notification was not sent are kept.
+
+**`ActivityLogTest`:** the invitation case uses a company address. All four old cases are now ported.
+
+**New:** `MailSettingsTest` (11), with every Google request faked.
+
+### Verified locally
+In headless Chrome: Admin > Mail with nothing connected, and the invite form.
+
+**Not verified:** a real Gmail connection and send. That needs the server's OAuth client.
+
+### Next step
+- Lesley pushes the branch; it merges itself.
+- **On Google Cloud:** add `https://tools.coachwoodgroup.com/admin/settings/mail/callback` as an authorised redirect URI on the OAuth client, and make sure the Gmail API is enabled in its project.
+- **On the site:** Admin > Mail > Connect Gmail as the sending account, then Send Test Email.
+- Then 3h: the database scheduler, run history, Run Now, failure emails, heartbeat, and the scheduled `activitylog:clean` (found issue 30).
+
 ## 2026-11-28: step 3f, Admin > Google Sign-In
 
 ### What changed

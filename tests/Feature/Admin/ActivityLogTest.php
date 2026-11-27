@@ -2,16 +2,18 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\GoogleWorkspaceDomain;
 use App\Models\Tool;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * Ported from the old app one case at a time, as each slice lands: the tool
- * cases here: tools (3d), deactivation and the viewer (3e); invitations (3g)
- * later. The cases are unchanged.
+ * Ported from the old app one case at a time as each slice landed: tools
+ * (3d), deactivation and the viewer (3e), invitations (3g). All four cases
+ * are here now.
  */
 class ActivityLogTest extends TestCase
 {
@@ -47,6 +49,27 @@ class ActivityLogTest extends TestCase
         $this->assertDatabaseHas('activity_log', [
             'log_name' => 'admin',
             'description' => 'Tool created',
+            'causer_id' => $admin->id,
+        ]);
+    }
+
+    /** Changed only to use a company address, which is all that can be invited now (decision 2026-11-27). */
+    public function test_inviting_a_user_logs_exactly_one_activity(): void
+    {
+        Notification::fake();
+        GoogleWorkspaceDomain::create(['domain' => 'coachwoodgroup.com']);
+
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post(route('admin.users.store'), [
+            'name' => 'New Person',
+            'email' => 'new-person@coachwoodgroup.com',
+            'role' => 'user',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'admin',
+            'description' => 'User invited',
             'causer_id' => $admin->id,
         ]);
     }

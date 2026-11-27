@@ -30,7 +30,7 @@ Status values:
 | 28 | Platform | Google sign-in lets any Google account in, personal Gmail included, when no Workspace domain is configured | `GoogleAuthController::isFromAllowedDomain` | fixed in 3b: no domain means nobody gets in |
 | 29 | Platform | Without Google's Workspace `hd` claim, the domain check falls back to the email's domain. A consumer Google account can be registered on a company address | `GoogleAuthController::isFromAllowedDomain` | fixed in 3b: the `hd` claim is required |
 | 9 | Listings Editors | The audit column config is described as admin-only, but any tool user can change it | `VendorListingController@auditConfig`, `SellerListingController@auditConfig` | to fix |
-| 10 | Platform | Invitation links expire after 60 minutes (password broker default). This is not documented anywhere | `config/auth.php` | goes away in 3g: invitations no longer send a password link (decision 2026-11-27) |
+| 10 | Platform | Invitation links expire after 60 minutes (password broker default). This is not documented anywhere | `config/auth.php` | gone in 3g: invitations send no password link (decision 2026-11-27) |
 
 ## Data correctness
 
@@ -49,7 +49,7 @@ Status values:
 | --- | --- | --- | --- | --- |
 | 17 | Platform | A "Run Now" that throws leaves the run "running", then "stale", with no email | `ScheduleExecuteRunCommand.php:52` | to fix |
 | 18 | Platform | `scheduled_tasks` has no unique key, so its `insertOrIgnore` registrations are not idempotent. Failure emails go to disabled admins too | `scheduled_tasks` migration, `ScheduledTask.php:121` | to fix |
-| 19 | Platform | Sending a test mail or a password reset returns a 500 if Gmail fails. A revoked Gmail token stays cached for up to 55 minutes | `MailConnectionController@test`, `PasswordResetLinkController`, `GmailApiTransport` | to fix |
+| 19 | Platform | Sending a test mail or a password reset returns a 500 if Gmail fails. A revoked Gmail token stays cached for up to 55 minutes | `MailConnectionController@test`, `PasswordResetLinkController`, `GmailApiTransport` | fixed in 3g: a failed test email is shown on the page, and a rejected cached token is dropped and the send retried once. The password-reset part went with password sign-in in 3b |
 | 20 | App Stats, Lost Sales | Date filters are parsed without validation, so bad input returns a 500 | `TeamAppStatsController@index`, `StockoutController` | to fix |
 | 21 | Amazon tools | `SpApiClient` has no retry or 429 handling, only fixed pauses. The Image Manager's no-JavaScript audit loop has no pause at all | `SpApiClient::request`, `ImageManagerController.php:201-203` | to fix |
 | 22 | VC Image Manager | The image file is stored before Amazon's preview runs, so a rejected upload leaves an orphan file | `ImageManagerController.php:102-152` | to fix |

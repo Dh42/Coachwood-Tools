@@ -1,6 +1,9 @@
-{{-- Admin > Users, ported from the old app. Inviting people (New user, Resend invite) comes in 3g. --}}
+{{-- Admin > Users, ported from the old app. --}}
 <x-layouts.app title="Users" breadcrumb="Admin">
-    <x-slot:subtitle>People who have signed in or been set up. Deactivate to remove access; delete only after deactivating.</x-slot:subtitle>
+    <x-slot:subtitle>People who have signed in or been invited. Deactivate to remove access; delete only after deactivating.</x-slot:subtitle>
+    <x-slot:actions>
+        <a href="{{ route('admin.users.create') }}" class="btn btn-primary">{{ __('Invite User') }}</a>
+    </x-slot:actions>
 
     <x-card>
         <x-data-table caption="Users">
@@ -31,6 +34,12 @@
                         <td class="text-right">
                             <div class="flex justify-end gap-2">
                                 <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-sm">{{ __('Edit') }}</a>
+                                @if ($user->isPending() && ! $user->isDisabled())
+                                    <form method="post" action="{{ route('admin.users.resend-invitation', $user) }}">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm">{{ __('Resend invite') }}</button>
+                                    </form>
+                                @endif
                                 @unless ($user->is(auth()->user()))
                                     @if ($user->isDisabled())
                                         <form method="post" action="{{ route('admin.users.activate', $user) }}">
