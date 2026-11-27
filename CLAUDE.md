@@ -9,5 +9,5 @@ Read `docs/decisions.md`, `docs/phase-0-plan.md` and the latest entry in `docs/c
 - Never run a destructive database command (`migrate:fresh`, `db:wipe`, mass delete) except against a disposable local database. Never write to the old database.
 - Production data is confidential. Never put real customer, order or financial values in fixtures, docs, commits or output.
 - Port tests first and make them pass. Fix bugs as found: write a test that fails on the old behaviour first, then log the fix in `docs/found-issues.md`.
-- Work goes straight to `main`: no per-step branches or pull requests (decision 2026-12-02). Commit and push only when Lesley asks. Plesk deploys `release`, which CI moves to a commit only after it passes on `main`.
+- Work goes straight to `main`: no per-step branches or pull requests (decision 2026-12-02). Lesley commits and pushes; Claude never commits, and leaves changes in the working copy. Plesk deploys `release`, which CI moves to a commit only after it passes on `main`.
 - End each session with a dated `docs/context.md` entry covering: what changed, test status, verified/from docs/assumed, open questions, next step.

@@ -23,6 +23,8 @@ final class TableMirror
         private readonly ConnectionInterface $legacy,
         private readonly ConnectionInterface $db,
         private readonly int $pauseMilliseconds = 250,
+        /** @var array<string, int> rows per batch for tables with large rows, so one upsert stays well under the server's max packet */
+        private readonly array $chunkSizes = [],
     ) {}
 
     /**
@@ -39,7 +41,7 @@ final class TableMirror
             $oldIds[$table] = [];
             $first = true;
 
-            $this->legacy->table($table)->select($columns)->orderBy('id')->chunk(self::CHUNK, function (Collection $rows) use ($table, $columns, &$report, &$oldIds, &$first) {
+            $this->legacy->table($table)->select($columns)->orderBy('id')->chunk($this->chunkSizes[$table] ?? self::CHUNK, function (Collection $rows) use ($table, $columns, &$report, &$oldIds, &$first) {
                 if (! $first) {
                     $this->pause();
                 }

@@ -761,6 +761,12 @@
         text-overflow: ellipsis;
     }
 
+    .table .truncate-cell-sm {
+        max-width: 14rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .table .wrap-cell {
         white-space: normal;
         min-width: 14rem;
@@ -908,6 +914,11 @@
     .stat-row {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    }
+
+    /* Five or six short numbers (CDQ grades and dimension scores) on one line. */
+    .stat-row.stat-row-tight {
+        grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
     }
 
     .stat-tile {

@@ -15,6 +15,11 @@ final class MirrorImports
         'sc_products' => ['id', 'asin', 'sku', 'title', 'status', 'synced_at', 'created_at'],
     ];
 
+    /** `vc_traffic_current`: read by CDQ for glance-view weights; a read-only copy until Phase 1 (plan section 5, "Shared tables"). */
+    public const VC_TRAFFIC = [
+        'vc_traffic_current' => ['id', 'dedup_key', 'asin', 'period_start', 'period_end', 'glance_views', 'lost_featured_offer_pct', 'sourceable_roos_pct', 'sell_through_rate_pct', 'pulled_at'],
+    ];
+
     /**
      * US Product Reviews (plan section 5.3): IDs preserved, and the old
      * app's rows replace this app's shadow rows on every run, so the two

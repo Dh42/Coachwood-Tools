@@ -74,4 +74,12 @@ return [
         'seller_marketplace_id' => env('SP_API_SELLER_MARKETPLACE_ID', 'ATVPDKIKX0DER'), // amazon.com (US)
     ],
 
+    // CDQ's consistency check (cdq:consistency). Ported from the old app.
+    'anthropic' => [
+        'api_key' => env('ANTHROPIC_API_KEY'),
+        'version' => env('ANTHROPIC_API_VERSION', '2023-06-01'),
+        'base_url' => env('ANTHROPIC_BASE_URL', 'https://api.anthropic.com'),
+        'model' => env('ANTHROPIC_CDQ_MODEL', 'claude-haiku-4-5-20251001'),
+    ],
+
 ];

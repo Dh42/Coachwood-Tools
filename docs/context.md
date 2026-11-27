@@ -7,6 +7,50 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-03: step 8, CDQ Listing Quality Report
+
+### What changed
+Committed straight to `main` (decision 2026-12-02). Step 8 of the plan, section 5.5.
+
+- **Ported unchanged:** the nine CDQ models and `VcTrafficCurrent`, the three `App\Services\Cdq` classes, `App\Services\Anthropic\AnthropicClient`, the five `cdq:*` commands (including `cdq:probe`), `CdqReportController`, and the three CDQ seeders (for tests and local use; production data is imported). The `services.anthropic` config block was added. `SpApiClient` already had every call CDQ needs.
+- **Tables:** one migration creates the nine `cdq_*` tables in the old app's final shape, plus `vc_traffic_current`. One column is new: `cdq_score.consist_checked_at`.
+- **Registration:** the tool under "Amazon · Listings" (icon `check`), its four Sunday tasks at the old times, and a daily `legacy:import-vc-traffic` (00:40 UTC). That makes plan section 5's "imported as is" for `vc_traffic_current` automatic.
+- **Found issue 13 fixed (decision 2026-12-03).**
+  - **What the old data showed:** the old app's consistency check has never run. There are no CONSIST defects and the Anthropic cache is empty; the old task description says it no-ops "until ANTHROPIC_API_KEY is set". So every scored listing got 10 of 100 points unchecked.
+  - **What changes:** scores and grades are unchanged, so the apps still match. `consist_checked_at` records a real check (`cdq:score` clears it whenever it writes the provisional 10). The page shows a notice and "Not checked" in the CONSIST column; the detail page shows "Not checked" with the provisional value.
+  - **The task now fails (alert email)** when Anthropic gives no usable answer, where it used to pass silently.
+  - Lesley is adding an Anthropic key to this app only.
+- **Found issue 14 fixed:** the work-queue CSV goes through `fputcsv`, so an ASIN, SKU or title with a comma or quote can't break a row.
+- **`legacy:import-cdq-report` (new):**
+  - Mirrors the eight tables with IDs. Snapshots go 100 rows per batch and schemas 5, to stay under the server's packet limit.
+  - Then clears `consist_checked_at`: every score left is the old app's, which was never checked.
+  - Adds old cache entries without ever deleting this app's, so the Sunday Anthropic answers survive imports and aren't paid for twice.
+- **`compare:cdq-report` (new):** hashes the eight tables in ID order, large documents by md5.
+- **Page:** rebuilt on the design. Grade counts on one row, the score histogram on the shared themed chart, week-over-week movement, top defects, and a sortable, filterable table with Copy ASINs. Grades are labelled badges and the work-queue CSV link is kept. The detail page shows the dimension scores and a defects table with severity badges. The old pages had no Tutorial tour, so none was added.
+- **New CSS:** `.truncate-cell-sm`, and `.stat-row-tight` for five or six short numbers on one line.
+
+### Test status
+595 tests, 1,908 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. Both new migrations roll back and re-apply on MariaDB. CI's steps were replayed on a clean copy without `.env`.
+
+- **Carried over (61):** 55 CDQ and 6 `AnthropicClientTest`. Two fixtures were changed on purpose, each with a comment: `CdqReportServiceTest` and `CdqScoringServiceTest` used made-up ASINs of 11 to 13 characters, longer than the 10-character `asin` column. Only SQLite let them through; the MariaDB run caught them.
+- **New:** `CdqFixesTest` 6, `ImportCdqReportTest` 6.
+
+### Verified locally
+- **Against the restored `tools_db` copy** (into a throwaway MariaDB; the `legacy` settings were scoped to each import command, never exported):
+  - `legacy:import-vc-traffic`: 3,510 rows.
+  - `legacy:import-cdq-report`: 9 schemas, 1,510 snapshots, 1 config version with 22 checks, 85,275 defects, 1,509 scores, 34 search-critical attributes and 5 title bands, in about 34 seconds. A second run added and removed nothing.
+  - `compare:cdq-report` matched in all eight sections. All 1,509 imported scores show as not checked.
+- **In headless Chrome, with made-up data:** the summary and detail pages. The first screenshots caught the CONSIST column running off the table and the grade tiles wrapping onto two rows. Both were fixed and checked again.
+- **Not verified:** a live run of the CDQ tasks or of Anthropic. That needs the server's settings; the first scheduled run is Sunday 04:00 UTC.
+
+### Open questions
+- The plan says the check config versions v1 to v4 are data in production. The old database has one version (with 22 checks), and it is imported as is.
+
+### Next step
+- Lesley commits and pushes.
+- **On the server:** add `ANTHROPIC_API_KEY` to `.env`, then run `optimize`, `legacy:import-vc-traffic`, `legacy:import-cdq-report` (`--dry-run` first) and `compare:cdq-report`.
+- Then step 9: ASP Tracker, Canadian Protein and BioSteel.
+
 ## 2026-12-02: Lost Sales comparison order, and a hole in the test safeguards
 
 ### What changed
@@ -30,18 +74,18 @@ Branch `fix/lost-sales-compare-order`, from `main` after #21 (step 7) merged.
 522 tests passing on SQLite (parallel), and on MariaDB 10.11.14 with both `utf8mb4_unicode_ci` and `utf8mb4_bin`. Pint clean. New: `TestSafeguardsTest` 2, and 1 in `ImportLostSalesTest` (an old table that sorts ignoring case).
 
 ### Verified
-- **Verified live:** Lesley ran the step 7 imports on the server.
+- **Verified live:** Lesley ran the step 7 imports on the server, and after this fix `compare:lost-sales` matched in all four sections.
   - `legacy:import-platform` moved 6 grants to the new permission (6 new, 6 removed).
   - `legacy:import-lost-sales` copied 53,697, 22,150, 258 and 414 rows.
   - Intervals and estimates matched; the two history tables were the false differences above.
 - **Local:** the cause was reproduced exactly (same hashes) and the fix was checked on the real data.
 
 ### Open questions
-- **This app's server database seems to sort text by bytes (case-sensitive), unlike the old app's.** It looks like a binary or case-sensitive collation, which would come from `DB_COLLATION` in the server `.env`, since `config/database.php` defaults to `utf8mb4_unicode_ci`. It changes how name lists sort, and makes text comparisons case-sensitive. Lesley to check, and decide whether to match the old app.
+- **Corrected 2026-12-02:** the byte-order sorting wasn't a MariaDB collation. A check on the server showed this app's default connection there is SQLite (`database/database.sqlite`), which compares text by bytes. The plan assumes MariaDB, and the `coachwood_tools` MariaDB database exists. Confirmed: the server `.env` had `DB_CONNECTION=sqlite` and no other `DB_*` lines, unlike `docs/server.env.example`, so since the first deploy the app has run on a 24 MB SQLite file. Plan agreed: switch `.env` to MariaDB, migrate, re-run every import and comparison, and reconnect Gmail. **Done and verified live:** Lesley switched `.env`, all 39 migrations ran on MariaDB (`coachwood_tools`), all six imports ran, and all four comparisons matched (App Stats 6/6, Walmart 4/4, US Product Reviews 7/7, Lost Sales 4/4). The `cache` failure in `optimize:clear` came before the migrations had created the table, and is harmless. The SQLite file is kept as `database/database.sqlite.before-mariadb` for a week. History grab's output is in storage, not the database, so it's unaffected. What starts fresh is only this app's own extras: scheduler run history, theme preferences, sessions, the Gmail connection, `amazon_capabilities` (the probe's findings are in this log), and App Stats rows collected only by this app (the old app's replace them anyway). The comparison fix stands either way: `compare:lost-sales` matched on the server after it.
 
 ### Git flow changed (decision 2026-12-02)
 Lesley doesn't work with git from the command line, and the per-step pull requests weren't their flow. From now on:
-- Everything is committed to `main`; Claude commits and pushes when asked.
+- Everything is committed to `main`. Lesley commits and pushes; Claude leaves changes uncommitted.
 - `release.yml` moves a `release` branch to each commit that passes CI, and Plesk deploys `release`.
 - `auto-merge.yml` is removed. `CLAUDE.md`, the plan and the README are updated.
 - The merged local branches were deleted.

@@ -2,13 +2,22 @@
 
 Each entry records a decision that replaces or adds to a default in `docs/build-spec.md`. Where this file and the spec differ, this file wins. Newest first.
 
+## 2026-12-03: CDQ consistency check
+
+Decided by Lesley while porting the CDQ Listing Quality Report.
+
+| Topic | Decision | Replaces |
+| --- | --- | --- |
+| Unchecked consistency (found issue 13) | Scores and grades stay as the old app computes them (an unchecked listing keeps the provisional 10 of 100), so the two apps still match. The page and detail show consistency as "Not checked", and `cdq:consistency` fails, with the alert email, when Anthropic gives no usable answer | Silent full credit |
+| Anthropic key | The new app gets its own `ANTHROPIC_API_KEY`, so the check really runs on Sundays. The old app has none. The import keeps this app's cached Anthropic answers, so unchanged listings aren't paid for again | |
+
 ## 2026-12-02: commit straight to main
 
 Decided by Lesley.
 
 | Topic | Decision | Replaces |
 | --- | --- | --- |
-| Git flow | Everything is committed to `main`: no per-step branches or pull requests. Claude commits and pushes when Lesley asks. CI runs on every push; `.github/workflows/release.yml` moves the `release` branch to a commit only once CI has passed on it, and Plesk deploys `release`. `auto-merge.yml` is removed | One pull request per step (plan, `CLAUDE.md`); branch, auto-merge, deploy `main` |
+| Git flow | Everything is committed to `main`: no per-step branches or pull requests. Lesley commits and pushes; Claude leaves changes in the working copy and never commits. CI runs on every push; `.github/workflows/release.yml` moves the `release` branch to a commit only once CI has passed on it, and Plesk deploys `release`. `auto-merge.yml` is removed | One pull request per step (plan, `CLAUDE.md`); branch, auto-merge, deploy `main` |
 
 ## 2026-12-02: Lost Sales snapshot clean-up
 

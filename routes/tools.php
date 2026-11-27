@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Tools\CdqReportController;
 use App\Http\Controllers\Tools\FeedbackController;
 use App\Http\Controllers\Tools\StockoutController;
 use App\Http\Controllers\Tools\TeamAppStatsController;
@@ -43,3 +44,12 @@ Route::middleware(['auth', 'permission:tool.biosteel-shopify-lost-sales'])
 
 Route::get('tools/stockout', fn (Request $request) => redirect()->route('tools.biosteel-shopify-lost-sales.index', $request->query(), 301))
     ->name('tools.stockout.redirect');
+
+Route::middleware(['auth', 'permission:tool.cdq-report'])
+    ->prefix('tools/cdq-report')
+    ->name('tools.cdq-report.')
+    ->group(function () {
+        Route::get('/', [CdqReportController::class, 'index'])->name('index');
+        Route::get('/export.csv', [CdqReportController::class, 'exportCsv'])->name('export-csv');
+        Route::get('/{asin}', [CdqReportController::class, 'show'])->name('show');
+    });

@@ -239,6 +239,16 @@ Ported from the old app (plan section 5.3). Reads only.
 - **Page:** a summary of every ASIN (catalog, pull status, topic counts, top topics; sortable, filterable, CSV, Copy ASINs) and a detail page per ASIN (`?asin=`). Each topic is labelled positive or negative, with occurrence and star impact against the category, the 6-month trend, snippets and subtopics. The page has a Tutorial tour.
 - **Settings:** the SP-API settings from step 2 (`SP_API_SELLER_REFRESH_TOKEN` and the client ID and secret).
 
+### CDQ Listing Quality Report (`/tools/cdq-report`, `tool.cdq-report`)
+
+Ported from the old app (plan section 5.5). Our own content quality score (0 to 100, deduction based) for every active Vendor Central ASIN. Reads only from Amazon.
+
+- **Scheduled, Sundays (UTC):** `cdq:sync-schemas` 04:00 (product type definitions), `cdq:snapshot` 04:15 (catalog items, A+ and listing issues, deduplicated by content hash), `cdq:score` 04:45 (no API calls), `cdq:consistency` 05:15 (Anthropic, cached per content hash, model and prompt version). `legacy:import-vc-traffic` copies `vc_traffic_current` daily at 00:40 for the glance-view weights.
+- **Consistency (found issue 13):** `cdq:score` gives every listing a provisional 10 of 100 for consistency; `cdq:consistency` replaces it with a real result and sets `cdq_score.consist_checked_at`. Until then the page shows "Not checked". When Anthropic gives no usable answer (no key, a failed call, an unreadable reply) the task fails and the alert email goes out, instead of passing silently.
+- **Page:** grade counts, score distribution, week-over-week movement, top defects, every scored ASIN (sortable, filterable, Copy ASINs) and a work-queue CSV (`/export.csv`, ranked by points lost times glance views). `/{asin}` shows one listing's scores and defects.
+- **Settings:** the SP-API vendor settings from step 2, and `ANTHROPIC_API_KEY` (optionally `ANTHROPIC_CDQ_MODEL`).
+- **Check config:** `cdq_check_config_version` and its checks, `cdq_search_critical_attribute` and `cdq_title_length_band` are data, copied from the old app. The seeders are for tests and local use only.
+
 ### BioSteel Shopify Lost Sales (`/tools/biosteel-shopify-lost-sales`, `tool.biosteel-shopify-lost-sales`)
 
 Ported from the old app's Stockout Lost Sales Estimator and renamed (decision D7). `/tools/stockout` redirects here (301, keeping the date range). Internal names stay: `config/stockout.php`, the `stockout:*` commands and the `STOCKOUT_*` settings. Reads only.
@@ -342,6 +352,17 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:lost-sales
 | `inventory_snapshots` | Not copied (spec 14.1). This app's sweep fills it |
 
 The comparison hashes every row the page reads in both databases: the history tables on (product title, day), sorted in PHP so the two databases' text sorting can't matter, and intervals and estimates whole, in ID order. Counts and hashes only.
+
+### `legacy:import-cdq-report` and `compare:cdq-report`
+
+```bash
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-vc-traffic
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-cdq-report --dry-run
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-cdq-report
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:cdq-report
+```
+
+The eight `cdq_*` tables are mirrored with their IDs (`TableMirror`, in small batches for the large snapshot and schema rows), so the old app's rows replace this app's own Sunday runs. After the copy every score is the old app's, so `consist_checked_at` is cleared. `cdq_llm_cache` is only added to, never pruned: this app's Anthropic answers stay valid. The comparison hashes the eight tables in ID order, large documents by md5, and leaves out `consist_checked_at` and the cache.
 
 ## One-time commands
 
