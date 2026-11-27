@@ -206,6 +206,8 @@ TaskRegistry::register([
 
 Registering only inserts (`command` is unique), so it never overwrites an admin's changes. A task's command must run without questions: add `--force` to commands that ask for confirmation in production.
 
+Tasks due in the same minute run one after another, so they are registered shortest first, by each task's last finished run; a long task (the Walmart audit) no longer holds up the rest (found issue 23).
+
 **Run Now** starts `schedule:execute-run` as a detached background process (`App\Services\Scheduler\BackgroundProcessLauncher`), so a slow task can't time out the web request. It needs `SCHEDULER_PHP_CLI_BINARY` in `.env` (`/opt/plesk/php/8.4/bin/php`): inside PHP-FPM, `PHP_BINARY` is the FPM binary and nothing would run. A command that throws is recorded as a failed run.
 
 **Registered now:** `scheduler:heartbeat` (every 5 minutes, proves the pipeline runs) and `activitylog:clean --force` (daily 03:15 UTC, the 365-day retention).
@@ -227,6 +229,15 @@ Ported from the old app (plan section 5.1). Reads only: nothing is written to an
   - **PDF and CSV export** of what's on screen.
 - **Settings (`.env`):** `BIOSTEEL_TEAMS_BASE_URL`, `BIOSTEEL_TEAMS_USERNAME` and `BIOSTEEL_TEAMS_PASSWORD`, plus `GOOGLE_TEAM_APP_STATS_KEY_FILE`, the path to the service-account JSON key, outside `public/`. The Ad Manager report and the GA4 property IDs are in `config/team_app_stats.php`.
 - **Import and comparison:** `legacy:import-team-app-stats` (with `--dry-run`) and `compare:team-app-stats` (`--from`, `--to`; by default the 30 days to yesterday). See below.
+
+### Walmart US Listing Auditor (`/tools/walmart-us-listing-auditor`, `tool.walmart-us-listing-auditor`)
+
+Ported from the old app (plan section 5.2). Reads only. Requesting Walmart's LISTING_QUALITY report changes no listing.
+
+- **Data:** `walmart-us:listing-audit`, daily at 06:00 UTC. It takes 10 to 20 minutes: it syncs the catalog, requests and polls the LISTING_QUALITY report, and falls back to the Insights endpoints when the report fails or comes back empty. It then writes one audit row and its issues per SKU, plus one catalog score. `--sku=` audits one SKU; `--dry-run` writes nothing.
+- **Pages:** the catalog rollup with how fresh it is, the 30-day Listing Quality trend, top issues, every audited SKU (with each score's band in words: Good 80+, Fair 50+, Poor below), and a per-SKU page with its issues.
+- **Settings (`.env`):** `WALMART_US_CLIENT_ID`, `WALMART_US_CLIENT_SECRET` and `WALMART_US_ENVIRONMENT` (`config/walmart.php`). The `WALMART_CA_*` block is for Phase 3.
+- **Not used yet:** `walmart_us_audit_params` (copied by the import) and `our_rule_score` are for the later rule engine. The old app's hand-run `WalmartUsAuditParamsSeeder` is not ported.
 
 ## Imports from the old app
 
@@ -269,6 +280,25 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:team-app-st
 | `team_app_snapshot_teams_backup`, `team_app_category_snapshots_backup` | The old team-totals correction's backups, re-mapped to the new snapshot IDs |
 
 The comparison runs the page's own report (`TeamAppStatsService`) against both databases for the same period. It prints row counts and a hash per section, and exits non-zero if any section differs.
+
+### `legacy:import-walmart-us` and `compare:walmart-us`
+
+```bash
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-walmart-us --dry-run
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-walmart-us
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:walmart-us
+```
+
+| Table | How |
+| --- | --- |
+| `walmart_us_items` | Upserted on `sku` |
+| `walmart_us_listing_snapshot` | Upserted on (`sku`, `content_hash`) |
+| `walmart_us_listing_audits` | Upserted on (`sku`, `run_at`), snapshot re-mapped. This app's own runs (a different `run_at`) are left alone |
+| `walmart_us_listing_audit_issues` | Each imported audit's issues brought in line with the old app's |
+| `walmart_us_catalog_scores` | Matched on `run_at` |
+| `walmart_us_audit_params` | Matched on `effective_from`; `changed_by` kept when that user exists here |
+
+The comparison covers catalog scores, SKU audits and their issues for a period (by default the 60 days to yesterday), and the catalog items as they are now. It matches rows on their natural keys. Rows from this app's own nightly runs are counted as "only here", not as a difference.
 
 ## One-time commands
 

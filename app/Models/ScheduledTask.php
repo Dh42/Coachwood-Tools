@@ -39,6 +39,14 @@ class ScheduledTask extends Model
         return $query->where('enabled', true);
     }
 
+    /** How long the latest finished run took, in seconds. */
+    public function lastRunSeconds(): ?int
+    {
+        $run = $this->runs()->whereNotNull('finished_at')->latest('started_at')->first(['started_at', 'finished_at']);
+
+        return $run ? (int) $run->started_at->diffInSeconds($run->finished_at) : null;
+    }
+
     public function humanReadableSchedule(): string
     {
         return match ($this->cron_expression) {
@@ -69,7 +77,13 @@ class ScheduledTask extends Model
      */
     public static function registerAllOnto(Schedule $schedule): void
     {
-        $tasks = static::enabled()->get();
+        // Shortest first, by each task's last finished run: Laravel runs the
+        // tasks due in one minute one after another, so a long one (the
+        // 10-20 minute Walmart audit) held up the rest (found issue 23).
+        // Tasks that never ran count as short; ties keep their order.
+        $tasks = static::enabled()->orderBy('id')->get()
+            ->sortBy(fn (self $task) => $task->lastRunSeconds() ?? 0)
+            ->values();
 
         if ($tasks->isEmpty()) {
             return;

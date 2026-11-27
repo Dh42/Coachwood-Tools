@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Tools\TeamAppStatsController;
+use App\Http\Controllers\Tools\WalmartUsAuditController;
 use Illuminate\Support\Facades\Route;
 
 // Tool pages, each behind its own `tool.<slug>` permission (admins pass
@@ -17,4 +18,12 @@ Route::middleware(['auth', 'permission:tool.team-app-stats'])
         Route::get('/social/top-posts', [TeamAppStatsController::class, 'socialTopPosts'])->name('social.top-posts');
         Route::get('/social/top-followed', [TeamAppStatsController::class, 'socialTopFollowed'])->name('social.top-followed');
         Route::get('/social/history', [TeamAppStatsController::class, 'socialHistory'])->name('social.history');
+    });
+
+Route::middleware(['auth', 'permission:tool.walmart-us-listing-auditor'])
+    ->prefix('tools/walmart-us-listing-auditor')
+    ->name('tools.walmart-us-listing-auditor.')
+    ->group(function () {
+        Route::get('/', [WalmartUsAuditController::class, 'index'])->name('index');
+        Route::get('/{sku}', [WalmartUsAuditController::class, 'show'])->name('show');
     });

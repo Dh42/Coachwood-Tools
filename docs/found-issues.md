@@ -37,7 +37,7 @@ Status values:
 
 | # | Tool | Issue | Where | Status |
 | --- | --- | --- | --- | --- |
-| 11 | Walmart US Auditor | The report download ignores the HTTP status. The known 520 error body parses to zero rows, so the run processes 0 SKUs, skips the fallback, and still writes a catalog score | `WalmartUsApiClient.php:165-175`, `WalmartUsListingAuditService.php:81-101` | to fix |
+| 11 | Walmart US Auditor | The report download ignores the HTTP status. The known 520 error body parses to zero rows, so the run processes 0 SKUs, skips the fallback, and still writes a catalog score | `WalmartUsApiClient.php:165-175`, `WalmartUsListingAuditService.php:81-101` | fixed in step 5: a non-2xx download, or a report with no SKU rows, falls back to the Insights endpoints. The old app's data shows the bug: daily catalog scores, but no SKU audits after 2026-10-06 |
 | 12 | BioSteel App Stats | The social snapshot runs at 23:55 Toronto but stamps the UTC date, which is already the next day | `TeamAppStatsSnapshotSocialCommand` | fixed in step 4: stamped with the Toronto date (`team_app_stats.social_timezone`). Rows the old app wrote keep their old dates |
 | 13 | CDQ | If the Anthropic key is missing or a call fails, the listing is scored as having no conflicts and gets full credit | `CdqConsistencyService` | to fix |
 | 14 | CDQ | The CSV export does not quote ASIN or SKU | `CdqReportController` | to fix |
@@ -54,7 +54,7 @@ Status values:
 | 20 | App Stats, Lost Sales | Date filters are parsed without validation, so bad input returns a 500 | `TeamAppStatsController@index`, `StockoutController` | App Stats part fixed in step 4: malformed dates fall back to the default range and a backwards range is swapped. Lost Sales waits for step 7 |
 | 21 | Amazon tools | `SpApiClient` has no retry or 429 handling, only fixed pauses. The Image Manager's no-JavaScript audit loop has no pause at all | `SpApiClient::request`, `ImageManagerController.php:201-203` | to fix |
 | 22 | VC Image Manager | The image file is stored before Amazon's preview runs, so a rejected upload leaves an orphan file | `ImageManagerController.php:102-152` | to fix |
-| 23 | Walmart US Auditor | The audit takes 10 to 20 minutes and runs at 06:00 UTC, so other tasks due at 06:00 wait behind it | `walmart-us:listing-audit` schedule | to fix |
+| 23 | Walmart US Auditor | The audit takes 10 to 20 minutes and runs at 06:00 UTC, so other tasks due at 06:00 wait behind it | `walmart-us:listing-audit` schedule | fixed in step 5, in the scheduler: tasks due in the same minute run shortest first, by their last finished run |
 | 30 | Platform | The activity log is configured to keep 365 days, but `activitylog:clean` is never scheduled, so nothing is ever deleted. No row is older than 365 days yet (the oldest is from August 2026) | `config/activitylog.php`, scheduled tasks | fixed in 3h: `activitylog:clean --force` is registered daily at 03:15 UTC |
 
 ## Documentation only
