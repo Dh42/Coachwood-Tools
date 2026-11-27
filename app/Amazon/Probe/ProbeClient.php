@@ -32,7 +32,7 @@ class ProbeClient extends SpApiClient
         $allowed = $method === 'GET' || ($method === 'POST' && in_array($path, self::ALLOWED_POST_PATHS, true));
 
         if (! $allowed) {
-            throw new LogicException("amazon:probe is read-only; refused {$method} {$path}.");
+            throw new LogicException("This SP-API client is read-only; refused {$method} {$path}.");
         }
 
         return parent::request($method, $path, $query, $jsonBody, $refreshToken);
