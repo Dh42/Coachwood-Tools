@@ -38,7 +38,10 @@ final class Navigation
 
         if ($user?->hasRole('admin')) {
             $groups[] = ['title' => 'Admin', 'items' => [
+                ['label' => 'Users', 'icon' => 'users', 'href' => route('admin.users.index'), 'active' => request()->routeIs('admin.users.*')],
+                ['label' => 'Teams', 'icon' => 'layers', 'href' => route('admin.teams.index'), 'active' => request()->routeIs('admin.teams.*')],
                 ['label' => 'Tools', 'icon' => 'sliders', 'href' => route('admin.tools.index'), 'active' => request()->routeIs('admin.tools.*')],
+                ['label' => 'Activity', 'icon' => 'clock', 'href' => route('admin.activity.index'), 'active' => request()->routeIs('admin.activity.*')],
             ]];
         }
 

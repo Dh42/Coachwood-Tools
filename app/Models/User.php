@@ -7,12 +7,13 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
- * Ported from the old app. `teams()` arrives with the teams table (step 3e).
+ * Ported from the old app.
  * `theme` and `font_size` are new: the display preferences, null until the
  * user picks one (App\View\Preferences).
  */
@@ -35,6 +36,11 @@ class User extends Authenticatable
             'disabled_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function teams(): BelongsToMany
+    {
+        return $this->belongsToMany(Team::class, 'team_user')->withTimestamps();
     }
 
     public function isDisabled(): bool

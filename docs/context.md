@@ -7,6 +7,39 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-28: step 3e, Admin > Users, Teams and Activity
+
+### What changed
+Branch `phase-0/admin-users-teams`. Slice 3e of the platform (plan section 3). 3d merged as #11.
+
+- **Admin > Users:** the old controller's index, edit, update, deactivate, activate and delete, with the same routes and names. A sortable, filterable table shows a status badge for each person ("Active", "Deactivated" or "Not signed in yet"). Deactivate and delete each ask for confirmation in a dialog. Inviting people (`create`, `store`, `resend-invitation`) moves to 3g with mail; until then a person appears after their first Google sign-in.
+- **Admin > Teams:** the old controller unchanged: create, edit, delete, add and remove members. The `teams` and `team_user` migrations are the old ones. `User::teams()` is back.
+- **Admin > Activity:** the old viewer, filtered by category, 25 a page, with a new `<x-pagination>` component. Entries logged in the same second are now ordered by ID; the old viewer showed them in an arbitrary order.
+- **`/admin`** redirects to Users, as before. The sidebar's Admin group has Users, Teams, Tools and Activity.
+- **Fixes** (`docs/found-issues.md`):
+  - **6:** Lesley chose to list every tool, inactive ones marked. The edit form now does that, and saving changes only `tool.*` permissions, so access to an inactive tool survives and comes back when the tool is switched on, and other permissions are never dropped.
+  - **7:** an admin can't deactivate their own account (403) or remove their own admin role (form error).
+  - **26:** the Teams page says no tool uses teams yet.
+- **Wording fix:** the old role hint said the admin role "does not grant tool access by itself". `Gate::before` gives admins every tool, so the hint now says so.
+- **Import:** `legacy:import-platform` copies teams (IDs preserved) and brings each imported team's members in line with the old app. Unchanged memberships keep their rows. A team name already used by a different ID here stops the import. The old app has no teams and no non-tool direct permissions, so neither the teams import nor fix 6 changes live data today.
+
+### Test status
+202 tests, 755 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. The two team migrations roll back and re-apply on MariaDB.
+
+- **Carried over unchanged (10):** `UserManagementTest` 5, `TeamManagementTest` 3, and the deactivation and viewer cases of the old `Admin\ActivityLogTest`. Only the invitation case of that file remains, for 3g.
+- **New:**
+  - `UserAccessFixesTest` (5): four failed on the old code first. The fifth (saving with an inactive tool ticked keeps it) already passed, because the old bug was only that the form never offered that tool.
+  - `AdminPagesTest` (11)
+  - two `ImportPlatformTest` cases, plus `teams` and `team_user` rows in the two count-table cases
+
+### Verified locally
+- Against the restored `tools_db` copy (into a throwaway MariaDB, since removed): `teams` 0 and `team_user` 0, and a re-run changed nothing.
+- In headless Chrome, with made-up people: Admin > Users and a user's edit page, with an inactive tool marked.
+
+### Next step
+- Lesley pushes the branch; it merges itself. No server command is needed (the old app has no teams).
+- Then 3f: Admin > Google Sign-In (the domain list). Google sign-in itself came in 3b.
+
 ## 2026-11-28: step 3d, tools registry and launcher
 
 ### What changed
