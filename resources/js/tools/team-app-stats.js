@@ -75,7 +75,19 @@ function init({ chart: D, range: RANGE, routes: ROUTES, granularity: GRANULARITY
         return themedChart(el, {
             type: 'line',
             data: { labels: D.labels, datasets: [{ data: values, borderWidth: 2, tension: 0.25, pointRadius: 0, fill: false }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: axes('x', true, true) },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                // Totals in the tens of thousands growing by a few dozen a day:
+                // the axis follows the data, as the old charts did, so the
+                // growth is visible. Bars still start at zero.
+                scales: (() => {
+                    const scales = axes('x', true, true);
+                    scales.y.beginAtZero = false;
+                    return scales;
+                })(),
+            },
         });
     }
 

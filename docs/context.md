@@ -7,6 +7,35 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-30: App Stats chart scale, connection check; steps 4 and 5 verified live
+
+### Verified live (Lesley, on the server)
+- **`legacy:import-platform`, `legacy:import-team-app-stats` and `legacy:import-walmart-us` ran.**
+  - App Stats: 3,598 snapshots, 16,401 sport rows, 142 ad days, 1,956 and 1,975 social rows, and the backups, all new. None was "updated", so the new app's own hourly snapshot hadn't recorded an hour yet (assumed: the BioSteel Teams login had only just been added).
+  - Walmart: 27 items, 79 audits, 440 issues, 85 catalog scores. The old app still has the same 79 audits from 2026-10-06, which confirms found issue 11 live.
+- **`compare:team-app-stats`** (2026-10-28 to 2026-11-26) matched in all six sections. **`compare:walmart-us`** (2026-09-28 to 2026-11-26) matched in all four.
+- **Lesley compared the App Stats page side by side with the old one and found two problems:**
+  - The users and teams lines looked flat. The values were the same (27,210 users, 3,727 teams, +242 and +25 over 7 days), but my line charts started the y-axis at zero; the old charts scaled to the data.
+  - Google Analytics and the QR campaign didn't load ("Couldn't load ...").
+
+### What changed
+Branch `fix/team-app-stats-charts-and-check`.
+- **Line charts** (users and teams over time) no longer start at zero, as in the old app, so a few dozen a day on a 27,000 total is visible. Bar charts still start at zero.
+- **`team-app-stats:check` (new):** checks each outside connection in turn and says which step fails:
+  - the key file (set, present, readable by the site user, a service-account key)
+  - Google's token exchange for Analytics and for Ad Manager
+  - a one-day `runReport` on each GA4 property, showing Google's error status (for example `PERMISSION_DENIED`) if it fails
+  - the BioSteel Teams login
+
+  It prints the service account's address, which is needed to grant access, and nothing else: no keys, no tokens, no data.
+
+### Test status
+395 tests passing on SQLite. Pint clean. `npm run build` passes. New: `TeamAppStatsCheckCommandTest` (4). The chart change is JavaScript and isn't covered by PHP tests.
+
+### Next step
+- Lesley pushes the branch; it merges itself. Then run `team-app-stats:check` on the server and share the table, which says why GA4 doesn't load.
+- Then step 6: US Product Reviews.
+
 ## 2026-11-30: step 5, Walmart US Listing Auditor
 
 ### Step 4 on the server (reported by Lesley)
