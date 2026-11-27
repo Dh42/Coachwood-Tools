@@ -2,6 +2,14 @@
 
 Each entry records a decision that replaces or adds to a default in `docs/build-spec.md`. Where this file and the spec differ, this file wins. Newest first.
 
+## 2026-11-29: tutorial tours
+
+Decided by Lesley while porting BioSteel App Stats.
+
+| Topic | Decision | Replaces |
+| --- | --- | --- |
+| Tutorial tours | Keep each tool's "Tutorial" tour (intro.js), restyled to the themes. Shared helper `resources/js/tour.js` and `<x-tour-button>`; the invitation email's line about the Tutorial button is back | |
+
 ## 2026-11-27: Google-only sign-in
 
 Decided by Lesley during step 3b.

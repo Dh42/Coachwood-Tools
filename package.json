@@ -18,6 +18,9 @@
     },
     "dependencies": {
         "chart.js": "^4.5.1",
+        "html2canvas": "^1.4.1",
+        "intro.js": "^8.5.0",
+        "jspdf": "^4.2.1",
         "sortablejs": "^1.15.7"
     }
 }

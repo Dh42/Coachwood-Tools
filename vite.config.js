@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js', 'resources/js/admin-tools.js'],
+            input: ['resources/css/app.css', 'resources/js/app.js', 'resources/js/admin-tools.js', 'resources/js/tools/team-app-stats.js'],
             refresh: true,
         }),
         tailwindcss(),

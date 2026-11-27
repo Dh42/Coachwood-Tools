@@ -45,6 +45,17 @@ export function onThemeChange(callback) {
     document.addEventListener('theme-changed', (event) => callback(chartTheme(), event.detail));
 }
 
+function colorDatasets(datasets, chartType, theme) {
+    datasets.forEach((dataset, i) => {
+        if (dataset.fixedColor) return;
+        const color = dataset.toneKey ? theme[dataset.toneKey] : theme.series[i % SERIES];
+        dataset.borderColor = color;
+        dataset.backgroundColor = dataset.fill || ['bar', 'pie', 'doughnut'].includes(dataset.type ?? chartType)
+            ? color
+            : dataset.backgroundColor ?? color;
+    });
+}
+
 export function applyChartTheme(chart, theme = chartTheme()) {
     const options = chart.options;
     options.color = theme.muted;
@@ -55,14 +66,7 @@ export function applyChartTheme(chart, theme = chartTheme()) {
         if (scale.title) scale.title.color = theme.muted;
     });
 
-    chart.data.datasets.forEach((dataset, i) => {
-        if (dataset.fixedColor) return;
-        const color = dataset.toneKey ? theme[dataset.toneKey] : theme.series[i % SERIES];
-        dataset.borderColor = color;
-        dataset.backgroundColor = dataset.fill || ['bar', 'pie', 'doughnut'].includes(dataset.type ?? chart.config.type)
-            ? color
-            : dataset.backgroundColor ?? color;
-    });
+    colorDatasets(chart.data.datasets, chart.config.type, theme);
 }
 
 function applyDefaults() {
@@ -74,13 +78,16 @@ function applyDefaults() {
 
 export function themedChart(element, config) {
     applyDefaults();
+    // Coloured before the chart is built: bars keep the colours they are
+    // created with until a full update, so colouring afterwards with
+    // update('none') left them Chart.js's default grey.
+    colorDatasets(config.data?.datasets ?? [], config.type, chartTheme());
     const chart = new Chart(element, config);
     applyChartTheme(chart);
-    chart.update('none');
     onThemeChange((theme) => {
         applyDefaults();
         applyChartTheme(chart, theme);
-        chart.update('none');
+        chart.update();
     });
 
     return chart;

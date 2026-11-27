@@ -38,7 +38,7 @@ Status values:
 | # | Tool | Issue | Where | Status |
 | --- | --- | --- | --- | --- |
 | 11 | Walmart US Auditor | The report download ignores the HTTP status. The known 520 error body parses to zero rows, so the run processes 0 SKUs, skips the fallback, and still writes a catalog score | `WalmartUsApiClient.php:165-175`, `WalmartUsListingAuditService.php:81-101` | to fix |
-| 12 | BioSteel App Stats | The social snapshot runs at 23:55 Toronto but stamps the UTC date, which is already the next day | `TeamAppStatsSnapshotSocialCommand` | to fix |
+| 12 | BioSteel App Stats | The social snapshot runs at 23:55 Toronto but stamps the UTC date, which is already the next day | `TeamAppStatsSnapshotSocialCommand` | fixed in step 4: stamped with the Toronto date (`team_app_stats.social_timezone`). Rows the old app wrote keep their old dates |
 | 13 | CDQ | If the Anthropic key is missing or a call fails, the listing is scored as having no conflicts and gets full credit | `CdqConsistencyService` | to fix |
 | 14 | CDQ | The CSV export does not quote ASIN or SKU | `CdqReportController` | to fix |
 | 15 | SC Listings | Sync only upserts, so SKUs that left the report keep their old status | `SellerListingController` sync | to fix |
@@ -51,7 +51,7 @@ Status values:
 | 17 | Platform | A "Run Now" that throws leaves the run "running", then "stale", with no email | `ScheduleExecuteRunCommand.php:52` | fixed in 3h: a command that throws closes the run as failed (exit code 1, the error in its output) and emails the admins |
 | 18 | Platform | `scheduled_tasks` has no unique key, so its `insertOrIgnore` registrations are not idempotent. Failure emails go to disabled admins too | `scheduled_tasks` migration, `ScheduledTask.php:121` | fixed in 3h: `scheduled_tasks.command` is unique, and failure emails skip disabled admins. A failure email that can't be sent is logged instead of breaking the run |
 | 19 | Platform | Sending a test mail or a password reset returns a 500 if Gmail fails. A revoked Gmail token stays cached for up to 55 minutes | `MailConnectionController@test`, `PasswordResetLinkController`, `GmailApiTransport` | fixed in 3g: a failed test email is shown on the page, and a rejected cached token is dropped and the send retried once. The password-reset part went with password sign-in in 3b |
-| 20 | App Stats, Lost Sales | Date filters are parsed without validation, so bad input returns a 500 | `TeamAppStatsController@index`, `StockoutController` | to fix |
+| 20 | App Stats, Lost Sales | Date filters are parsed without validation, so bad input returns a 500 | `TeamAppStatsController@index`, `StockoutController` | App Stats part fixed in step 4: malformed dates fall back to the default range and a backwards range is swapped. Lost Sales waits for step 7 |
 | 21 | Amazon tools | `SpApiClient` has no retry or 429 handling, only fixed pauses. The Image Manager's no-JavaScript audit loop has no pause at all | `SpApiClient::request`, `ImageManagerController.php:201-203` | to fix |
 | 22 | VC Image Manager | The image file is stored before Amazon's preview runs, so a rejected upload leaves an orphan file | `ImageManagerController.php:102-152` | to fix |
 | 23 | Walmart US Auditor | The audit takes 10 to 20 minutes and runs at 06:00 UTC, so other tasks due at 06:00 wait behind it | `walmart-us:listing-audit` schedule | to fix |
