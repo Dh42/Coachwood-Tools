@@ -55,7 +55,7 @@ Ported in this order, from the platform inventory:
 | 3b | Users, Google sign-in (the only way in, decision 2026-11-27), profile, roles `admin` and `user` (seeded by migration this time, not by a manual seeder), Spatie permissions, `Gate::before` for admins, the user part of `legacy:import-platform` | 26 (password tests replaced, Google tests added) |
 | 3c | Activity log (365-day retention as today), the `auth` log lines, the activity-log import | 3 (`AccountDeactivationTest`). The 4 `ActivityLogTest` cases each need a later slice and move with it: Tools (3d), deactivate and the viewer (3e), invitations (3g) |
 | 3d | Tools registry, the home launcher, Admin > Tools with drag ordering, the self-registration convention | 16 (`ToolManagementTest` 10, `ToolPermissionGatingTest` 5, the tool case of `ActivityLogTest`) |
-| 3e | Admin > Users, Teams and Activity | 19 |
+| 3e | Admin > Users, Teams and Activity. Inviting users (create, store, resend) moves to 3g with mail | 10 (`UserManagementTest` 5, `TeamManagementTest` 3, two `ActivityLogTest` cases). `AccountDeactivationTest` came in 3c |
 | 3f | Admin > Google Sign-In (the domain list). Google sign-in itself moved to 3b | 8 |
 | 3g | Gmail transport, Admin > Mail settings, invitations (no password link, decision 2026-11-27) | 11 |
 | 3h | Database scheduler, run history, "Run Now", failure emails, heartbeat, the single cron entry | 10 |

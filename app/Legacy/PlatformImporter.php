@@ -29,8 +29,11 @@ use Spatie\Permission\PermissionRegistrar;
  * - tools (3d), matched by slug: the old app's order and active flag are
  *   copied onto tools already registered here. Tools not ported yet are
  *   not created; their links would lead nowhere in this app
+ * - teams (3e), with their IDs preserved, and each imported team's members,
+ *   replaced on every run. A team name already used by a different ID here
+ *   stops the import before anything is written
  *
- * Later slices add teams and scheduled tasks.
+ * Later slices add scheduled tasks.
  * It reports counts only, never names, emails or other values.
  */
 final class PlatformImporter
@@ -65,6 +68,7 @@ final class PlatformImporter
     {
         $this->report = [];
         $this->refuseClashes();
+        $this->refuseTeamClashes();
 
         $this->db->beginTransaction();
 
@@ -78,6 +82,8 @@ final class PlatformImporter
             $this->importRolePermissions($roles, $permissions);
             $this->importActivityLog();
             $this->importToolOrder();
+            $teamIds = $this->importTeams();
+            $this->importTeamMembers($teamIds, $userIds);
         } catch (\Throwable $e) {
             $this->db->rollBack();
 
@@ -266,6 +272,66 @@ final class PlatformImporter
         });
 
         $this->report['activity_log'] = $report;
+    }
+
+    private function refuseTeamClashes(): void
+    {
+        $old = $this->legacy->table('teams')->get(['id', 'name']);
+        $here = $this->db->table('teams')->whereIn('name', $old->pluck('name'))->pluck('id', 'name');
+        $clashes = $old->filter(fn ($row) => isset($here[$row->name]) && (int) $here[$row->name] !== (int) $row->id)
+            ->map(fn ($row) => "old team {$row->id} matches new team {$here[$row->name]}");
+
+        if ($clashes->isNotEmpty()) {
+            throw new RuntimeException('These old teams have a name that a different team already has here, so nothing was imported: '.$clashes->implode('; ').'.');
+        }
+    }
+
+    /** @return list<int> the imported team IDs */
+    private function importTeams(): array
+    {
+        $old = $this->legacy->table('teams')->orderBy('id')->get(['id', 'name', 'description', 'created_at', 'updated_at']);
+        $existing = $this->db->table('teams')->whereIn('id', $old->pluck('id'))->count();
+
+        if ($old->isNotEmpty()) {
+            $this->db->table('teams')->upsert($old->map(fn ($row) => (array) $row)->all(), ['id'], ['name', 'description', 'created_at', 'updated_at']);
+        }
+
+        $this->report['teams'] = ['read' => $old->count(), 'new' => $old->count() - $existing, 'updated' => $existing, 'removed' => 0];
+
+        return $old->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * Each imported team's members, brought in line with the old app.
+     *
+     * @param  list<int>  $teamIds
+     * @param  list<int>  $userIds
+     */
+    private function importTeamMembers(array $teamIds, array $userIds): void
+    {
+        $users = array_flip($userIds);
+        $rows = $this->legacy->table('team_user')->whereIn('team_id', $teamIds)->get(['team_id', 'user_id', 'created_at', 'updated_at'])
+            ->filter(fn ($row) => isset($users[(int) $row->user_id]))
+            ->map(fn ($row) => ['team_id' => (int) $row->team_id, 'user_id' => (int) $row->user_id, 'created_at' => $row->created_at, 'updated_at' => $row->updated_at]);
+
+        $key = fn (array $row) => $row['team_id'].'|'.$row['user_id'];
+        $wanted = $rows->keyBy($key);
+        $before = $this->db->table('team_user')->whereIn('team_id', $teamIds)->get(['id', 'team_id', 'user_id'])
+            ->map(fn ($row) => ['id' => (int) $row->id, 'team_id' => (int) $row->team_id, 'user_id' => (int) $row->user_id])
+            ->keyBy($key);
+
+        // Change only what differs, so unchanged memberships keep their rows.
+        $this->db->table('team_user')->whereIn('id', $before->diffKeys($wanted)->pluck('id'))->delete();
+        foreach ($wanted->diffKeys($before)->values()->chunk(self::CHUNK) as $chunk) {
+            $this->db->table('team_user')->insert($chunk->values()->all());
+        }
+
+        $this->report['team_user'] = [
+            'read' => $rows->count(),
+            'new' => $wanted->diffKeys($before)->count(),
+            'updated' => 0,
+            'removed' => $before->diffKeys($wanted)->count(),
+        ];
     }
 
     private function importToolOrder(): void

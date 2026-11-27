@@ -3,6 +3,7 @@
 namespace Tests\Feature\Legacy;
 
 use App\Models\GoogleWorkspaceDomain;
+use App\Models\Team;
 use App\Models\Tool;
 use App\Models\User;
 use App\Tools\ToolRegistry;
@@ -22,7 +23,7 @@ class ImportPlatformTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const OLD_TABLES = ['users', 'roles', 'permissions', 'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'google_workspace_domains', 'activity_log', 'tools'];
+    private const OLD_TABLES = ['users', 'roles', 'permissions', 'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'google_workspace_domains', 'activity_log', 'tools', 'teams', 'team_user'];
 
     protected function setUp(): void
     {
@@ -58,6 +59,18 @@ class ImportPlatformTest extends TestCase
         $schema->create('google_workspace_domains', function (Blueprint $t) {
             $t->id();
             $t->string('domain');
+            $t->timestamps();
+        });
+        $schema->create('teams', function (Blueprint $t) {
+            $t->id();
+            $t->string('name')->unique();
+            $t->text('description')->nullable();
+            $t->timestamps();
+        });
+        $schema->create('team_user', function (Blueprint $t) {
+            $t->id();
+            $t->unsignedBigInteger('team_id');
+            $t->unsignedBigInteger('user_id');
             $t->timestamps();
         });
         $schema->create('tools', function (Blueprint $t) {
@@ -110,6 +123,11 @@ class ImportPlatformTest extends TestCase
             ['permission_id' => 30, 'role_id' => 7],
         ]);
         $old->table('google_workspace_domains')->insert([['domain' => 'example.test']]);
+        $old->table('teams')->insert([['id' => 4, 'name' => 'Amazon', 'description' => 'Made-up team']]);
+        $old->table('team_user')->insert([
+            ['team_id' => 4, 'user_id' => 3],
+            ['team_id' => 4, 'user_id' => 5],
+        ]);
         $old->table('tools')->insert([
             ['name' => 'Ported Tool', 'slug' => 'ported-tool', 'url' => '/tools/ported-tool', 'active' => false, 'sort_order' => 9],
             ['name' => 'Not Ported Yet', 'slug' => 'not-ported-yet', 'url' => '/tools/not-ported-yet', 'active' => true, 'sort_order' => 2],
@@ -253,6 +271,8 @@ class ImportPlatformTest extends TestCase
                 ['role_has_permissions', 1, 1, 0, 0],
                 ['activity_log', 2, 2, 0, 0],
                 ['tools', 2, 0, 0, 0],
+                ['teams', 1, 1, 0, 0],
+                ['team_user', 2, 2, 0, 0],
             ])
             ->assertSuccessful();
     }
@@ -273,6 +293,8 @@ class ImportPlatformTest extends TestCase
                 ['role_has_permissions', 1, 0, 0, 0],
                 ['activity_log', 2, 0, 2, 0],
                 ['tools', 2, 0, 0, 0],
+                ['teams', 1, 0, 1, 0],
+                ['team_user', 2, 0, 0, 0],
             ])
             ->assertSuccessful();
     }
@@ -313,10 +335,35 @@ class ImportPlatformTest extends TestCase
         $this->assertDatabaseMissing('tools', ['slug' => 'not-ported-yet']);
     }
 
+    public function test_it_copies_teams_with_their_ids_and_replaces_their_members(): void
+    {
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+
+        $team = Team::findOrFail(4);
+        $this->assertSame('Amazon', $team->name);
+        $this->assertEqualsCanonicalizing([3, 5], $team->members()->pluck('users.id')->all());
+
+        $team->members()->attach(9);
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+
+        $this->assertEqualsCanonicalizing([3, 5], $team->members()->pluck('users.id')->all());
+    }
+
+    public function test_a_team_name_used_by_a_different_team_here_stops_the_import(): void
+    {
+        Team::forceCreate(['id' => 40, 'name' => 'Amazon']);
+
+        $this->artisan('legacy:import-platform')
+            ->expectsOutputToContain('old team 4 matches new team 40')
+            ->assertFailed();
+
+        $this->assertSame(0, User::count());
+    }
+
     /** @return array<string, list<array<string, mixed>>> */
     private function newDatabaseRows(): array
     {
-        $tables = ['users' => 'id', 'roles' => 'id', 'permissions' => 'id', 'google_workspace_domains' => 'id', 'model_has_roles' => 'model_id', 'model_has_permissions' => 'model_id', 'role_has_permissions' => 'role_id', 'activity_log' => 'id'];
+        $tables = ['users' => 'id', 'roles' => 'id', 'permissions' => 'id', 'google_workspace_domains' => 'id', 'model_has_roles' => 'model_id', 'model_has_permissions' => 'model_id', 'role_has_permissions' => 'role_id', 'activity_log' => 'id', 'teams' => 'id', 'team_user' => 'user_id'];
 
         return collect($tables)->map(fn (string $order, string $table) => DB::table($table)->orderBy($order)->get()->map(fn ($row) => (array) $row)->all())->all();
     }

@@ -175,6 +175,15 @@ Registering only inserts, so it never overwrites what an admin changed. A new to
 
 **Admin > Tools** (`/admin/tools`): add, edit and delete tools, and reorder them by dragging or with the Move up and Move down buttons. Deleting a tool removes its permission and every grant of it.
 
+## Admin pages
+
+All under `/admin`, for the `admin` role only. The sidebar's Admin group links them.
+
+- **Users** (`/admin/users`): role, tool access and teams for each person. Every tool is listed, inactive ones marked; saving changes only `tool.*` permissions, so access to an inactive tool comes back when it is switched on. Deactivate signs someone out and keeps them out; delete is offered only once they are deactivated. You can't deactivate yourself or remove your own admin role. Inviting people arrives with mail (3g); until then a person appears here after their first Google sign-in.
+- **Teams** (`/admin/teams`): named groups of people. No tool uses them yet.
+- **Tools** (`/admin/tools`): see Tools registry.
+- **Activity** (`/admin/activity`): the activity log, newest first, 25 a page, filtered by category.
+
 ## Imports from the old app
 
 ### `legacy:import-platform`
@@ -194,8 +203,9 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-platf
 | `google_workspace_domains` | Matched by domain |
 | `activity_log` | Matched on `legacy_id` (the old row's ID). This app's own entries are kept. Read 1,000 rows at a time with a short pause between |
 | `tools` | Matched by slug. The old app's order and active flag are copied onto tools already registered here. Tools not ported yet are not created |
+| `teams`, `team_user` | Team IDs preserved. Each imported team's members are brought in line with the old app. A team name already used by a different ID here stops the import |
 
-It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Later platform slices add teams and scheduled tasks to this command.
+It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Step 3h adds scheduled tasks to this command.
 
 ## One-time commands
 
