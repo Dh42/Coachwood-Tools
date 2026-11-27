@@ -1,0 +1,189 @@
+/*
+ * Design tokens. The only file with literal colours, sizes and fonts
+ * (build spec section 15, rule 1). Views and components use these through
+ * the classes in app.css or Tailwind utilities mapped in its @theme block.
+ *
+ * Themes come from the Claude Design canvas "Coachwood Tools Redesign"
+ * (Themes artboard, 2026-11-24). Midnight is the default. Each theme sets
+ * `color-scheme`, so the chart helper and native controls know whether it
+ * is light or dark.
+ *
+ * The chart series colours are not in the design. They follow Okabe-Ito,
+ * a palette that stays distinguishable with the common colour-vision
+ * deficiencies, adjusted per theme for contrast. Six series are supported;
+ * beyond that, group the rest as "Other".
+ */
+
+:root {
+    /* Type */
+    --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --text-2xs: 0.71875rem; /* 11.5px: nav group labels */
+    --text-xs: 0.75rem; /* 12px: badges, meta */
+    --text-sm: 0.8125rem; /* 13px: secondary text, buttons */
+    --text-md: 0.875rem; /* 14px: body */
+    --text-lg: 1rem; /* 16px: section headings */
+    --text-xl: 1.5rem; /* 24px: stat values */
+    --text-2xl: 1.875rem; /* 30px: page titles */
+    --text-3xl: 2.125rem; /* 34px: incident counts */
+    --leading-body: 1.45;
+    --leading-tight: 1.2;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+    --tracking-tight: -0.01em;
+    --tracking-label: 0.04em;
+
+    /* Spacing (4px steps) */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-7: 1.75rem;
+    --space-8: 2rem;
+    --space-9: 2.25rem;
+    --space-12: 3rem;
+
+    /* Sizes */
+    --control-height: 2.25rem; /* 36px: buttons, inputs, icon buttons */
+    --control-height-sm: 2rem;
+    --icon-sm: 0.8125rem;
+    --icon-md: 1.0625rem;
+    --icon-lg: 1.125rem;
+    --sidebar-width: 15.5rem;
+    --content-max: 77.5rem;
+    --touch-target: 2.75rem;
+
+    /* Radii */
+    --radius-sm: 0.4375rem;
+    --radius-md: 0.5625rem;
+    --radius-lg: 0.625rem;
+    --radius-xl: 0.875rem;
+    --radius-pill: 999px;
+
+    /* Elevation */
+    --shadow-overlay: 0 12px 32px rgb(0 0 0 / 0.35);
+    --shadow-toast: 0 8px 24px rgb(0 0 0 / 0.3);
+
+    /* Motion */
+    --duration-fast: 120ms;
+    --duration-toast: 4000ms;
+
+    /* Breakpoint, mirrored in app.css media queries (CSS can't use a variable there) */
+    --breakpoint-sidebar: 56rem;
+}
+
+/* Text size switch: Large scales every rem-based size. */
+html[data-font-size='large'] {
+    font-size: 112.5%;
+}
+
+:root,
+[data-theme='midnight'] {
+    color-scheme: dark;
+    --bg: #0e0f1c;
+    --surface: #161829;
+    --surface-2: #1e2138;
+    --border: #2a2e4a;
+    --text: #e8e9f4;
+    --muted: #a0a5c3;
+    --faint: #8a90b0;
+    --accent: #a594ff;
+    --accent-ink: #15122e;
+    --accent-soft: rgb(165 148 255 / 0.14);
+    --good: #4ade80;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --near: #fb923c;
+    --gap: #d8b4fe;
+    --info: #60a5fa;
+    --series-1: #56b4e9;
+    --series-2: #e69f00;
+    --series-3: #2dbe8c;
+    --series-4: #f0e442;
+    --series-5: #cc79a7;
+    --series-6: #e8733a;
+}
+
+[data-theme='graphite'] {
+    color-scheme: dark;
+    --bg: #17191c;
+    --surface: #1f2226;
+    --surface-2: #282c31;
+    --border: #353a42;
+    --text: #eceef1;
+    --muted: #a7aeb8;
+    --faint: #8d949f;
+    --accent: #4f8cff;
+    --accent-ink: #06142e;
+    --accent-soft: rgb(79 140 255 / 0.15);
+    --good: #4ade80;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --near: #fb923c;
+    --gap: #d8b4fe;
+    --info: #7dd3fc;
+    --series-1: #56b4e9;
+    --series-2: #e69f00;
+    --series-3: #2dbe8c;
+    --series-4: #f0e442;
+    --series-5: #cc79a7;
+    --series-6: #e8733a;
+}
+
+[data-theme='daylight'] {
+    color-scheme: light;
+    --bg: #f4f5f9;
+    --surface: #ffffff;
+    --surface-2: #f0f1f6;
+    --border: #e1e4ee;
+    --text: #151829;
+    --muted: #545a72;
+    --faint: #666c85;
+    --accent: #5b47e0;
+    --accent-ink: #ffffff;
+    --accent-soft: rgb(91 71 224 / 0.1);
+    --good: #15803d;
+    --warn: #a16207;
+    --bad: #dc2626;
+    --near: #c2410c;
+    --gap: #9333ea;
+    --info: #2563eb;
+    --shadow-overlay: 0 12px 32px rgb(21 24 41 / 0.18);
+    --shadow-toast: 0 8px 24px rgb(21 24 41 / 0.16);
+    --series-1: #0072b2;
+    --series-2: #d55e00;
+    --series-3: #009e73;
+    --series-4: #a68a00;
+    --series-5: #b5508e;
+    --series-6: #56b4e9;
+}
+
+[data-theme='evergreen'] {
+    color-scheme: dark;
+    --bg: #0b1512;
+    --surface: #111f1b;
+    --surface-2: #182a24;
+    --border: #24392f;
+    --text: #e6f2ed;
+    --muted: #a0bbb0;
+    --faint: #86a195;
+    --accent: #34d399;
+    --accent-ink: #04241a;
+    --accent-soft: rgb(52 211 153 / 0.13);
+    --good: #86efac;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --near: #fb923c;
+    --gap: #d8b4fe;
+    --info: #7dd3fc;
+    --series-1: #56b4e9;
+    --series-2: #e69f00;
+    --series-3: #cc79a7;
+    --series-4: #f0e442;
+    --series-5: #a594ff;
+    --series-6: #e8733a;
+}

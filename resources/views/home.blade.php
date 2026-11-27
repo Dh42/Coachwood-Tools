@@ -1,17 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Coachwood Tools</title>
-    <style>
-        body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: system-ui, sans-serif; background: #f6f6f4; color: #1f2420; }
-        @media (prefers-color-scheme: dark) { body { background: #161816; color: #e6e8e4; } }
-        h1 { font-weight: 600; font-size: 1.5rem; margin: 0; }
-    </style>
-</head>
-<body>
-    <h1>Coachwood Tools</h1>
-</body>
-</html>
+{{-- Placeholder home until sign-in (3b) and the tools launcher (3d) are ported. --}}
+<x-layouts.app title="Coachwood Tools" breadcrumb="Home">
+    <x-slot:subtitle>The new tools app for Coachwood Group. Tools move here one at a time from tools.biosteel.com.</x-slot:subtitle>
+
+    <x-card>
+        <x-empty-state title="No tools here yet" icon="box">
+            Sign-in and the tools list arrive in the next platform steps. Until then, keep using tools.biosteel.com.
+        </x-empty-state>
+    </x-card>
+</x-layouts.app>
