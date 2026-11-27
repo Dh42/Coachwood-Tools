@@ -28,6 +28,9 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // The old README said logouts were logged; nothing did (found issue 24).
+        activity('auth')->causedBy($request->user())->log('Logged out');
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

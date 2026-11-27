@@ -129,6 +129,23 @@ Sign-in is **Google only** (decision 2026-11-27): no passwords, no password rese
 
 **Server settings:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` (`https://tools.coachwoodgroup.com/auth/google/callback`, which must be an authorised redirect URI on the OAuth client), and `INITIAL_ADMIN_EMAIL`.
 
+## Activity log
+
+[spatie/laravel-activitylog](https://spatie.be/docs/laravel-activitylog), table `activity_log`, kept 365 days (`config/activitylog.php`; the daily clean-up is scheduled in 3h). The viewer is Admin > Activity (3e).
+
+The `auth` log records every sign-in outcome:
+- `Login succeeded` (with `method: google`)
+- `Google account created`
+- `Login blocked - domain not allowed`, `- no domain configured`, `- account disabled` and `- linked to a different Google account`. The refused address is in the entry's properties.
+- `Logged out`
+- `Signed out - account disabled`
+
+Code anywhere can log its own events under its own name:
+
+```php
+activity('tool.invoicing')->causedBy($user)->performedOn($invoice)->log('Invoice approved');
+```
+
 ## Imports from the old app
 
 ### `legacy:import-platform`
@@ -146,8 +163,9 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-platf
 | `roles`, `permissions` | Matched by name and guard |
 | User roles and direct permissions, role permissions | Replaced with the old app's for each imported user, re-mapped to the new IDs |
 | `google_workspace_domains` | Matched by domain |
+| `activity_log` | Matched on `legacy_id` (the old row's ID). This app's own entries are kept. Read 1,000 rows at a time with a short pause between |
 
-It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Later platform slices add tools, teams, the activity log and scheduled tasks to this command.
+It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Later platform slices add tools, teams and scheduled tasks to this command.
 
 ## One-time commands
 

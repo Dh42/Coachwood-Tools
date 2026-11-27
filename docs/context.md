@@ -7,6 +7,40 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-28: step 3c, activity log; 3b live
+
+### Verified live (3b, reported by Lesley)
+- **#9 (Google-only sign-in) deployed.** Google sign-in works on tools.coachwoodgroup.com.
+- **`tools_legacy_ro` fixed.** It had `SELECT, SHOW VIEW` on `coachwood_tools` (the new app's database) and nothing on `tools_db`, so the import was refused (1044). Lesley moved the grant. `SHOW GRANTS` now lists only `USAGE` and `SELECT, SHOW VIEW` on `tools_db`. The security item "confirm `tools_legacy_ro` is SELECT only" is closed.
+- **Password rotated.** The account's password hash was pasted into the chat, so Lesley changed the password.
+- **`legacy:import-platform` run on the server:** 2 roles, 26 permissions, 4 domains, 20 users, 20 role grants, 145 permission grants. The counts match the local test against the restored copy. It was re-run under #9 so that no password hashes remain.
+
+### What changed
+Branch `phase-0/activity-log`. Slice 3c of the platform (plan section 3).
+- **Package:** `spatie/laravel-activitylog` 4.12.3, the same version as the old app. Its three table migrations and `config/activitylog.php` (365 days) are copied unchanged.
+- **`auth` log lines:**
+  - The old Google sign-in lines are back: `Login succeeded`, `Google account created`, `Login blocked - domain not allowed` and `Login blocked - account disabled`.
+  - New, for the 3b fixes: `Login blocked - no domain configured`, `Login blocked - linked to a different Google account` (logged against the account it tried to reach) and `Signed out - account disabled` (from the middleware).
+  - `Logged out` is new and fixes found issue 24.
+- **`activity_log.legacy_id` (new column):** `legacy:import-platform` now copies the old activity log, matched on the old row's ID. The plan said to preserve the IDs. That would collide, because this app logs sign-ins from its first deploy, and nothing points at an activity ID. The plan is updated.
+- **Found issue 30 (new):** the old app's 365-day retention was never applied, because `activitylog:clean` is never scheduled. It will be fixed in 3h with the scheduler. Nothing is near 365 days old yet.
+- **Plan change:** the 4 old `ActivityLogTest` cases test Admin > Tools, invitations, deactivation and the viewer. Each moves to its own slice (3d, 3g, 3e, 3e).
+
+### Test status
+144 tests, 581 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. The four new migrations roll back and re-apply on MariaDB.
+
+`AccountDeactivationTest` (3) is ported. Its cases signed in with a password, so they now go through the Google callback, and they assert the same activity-log rows. The failed case asserts the old Google controller's line, `Login blocked - domain not allowed`, instead of the password `Login failed`. New tests:
+- `Platform\ActivityLogTest` (7)
+- one `ImportPlatformTest` case
+- an `activity_log` row in the two count-table cases
+
+### Verified locally
+The real import from the restored `tools_db` copy into a throwaway MariaDB (since removed): 431 activity rows copied, a re-run added none, and no passwords were left.
+
+### Next step
+- Lesley pushes the branch; it merges itself. Then re-run `legacy:import-platform` on the server to copy the activity log.
+- Then 3d: the tools registry, the home launcher, Admin > Tools with drag ordering, and self-registration.
+
 ## 2026-11-27: step 3b, users, Google sign-in, profile, roles
 
 ### What changed

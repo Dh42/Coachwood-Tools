@@ -17,6 +17,8 @@ class SignOutDisabledUsers
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->user()?->isDisabled()) {
+            activity('auth')->causedBy($request->user())->log('Signed out - account disabled');
+
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
