@@ -4,6 +4,7 @@
  *
  *   <button data-modal-open="confirm-delete">   opens <dialog id="confirm-delete">
  *   <button data-modal-close>                    closes its dialog
+ *   <dialog data-modal-show>                     opens on load (e.g. to show form errors)
  *   window.toast('Saved', 'good')                tones: good, bad, warn, info
  *   <button data-copy="text" or data-copy-from="#id">
  */
@@ -56,6 +57,7 @@ export function initUi() {
     document.querySelectorAll('[data-modal-close]').forEach((button) => {
         button.addEventListener('click', () => button.closest('dialog')?.close());
     });
+    document.querySelectorAll('dialog[data-modal-show]').forEach((dialog) => dialog.showModal());
 
     document.querySelectorAll('[data-copy], [data-copy-from]').forEach((button) => {
         button.addEventListener('click', async () => {

@@ -2,7 +2,8 @@
  * Theme and text size. Both live in plain cookies, not localStorage, so the
  * layouts render the right `data-theme` and `data-font-size` on <html> in the
  * first response, with no flash (the old app did this for font size only).
- * Step 3b adds the theme to the user record; the cookie stays the fallback.
+ * When signed in, the layout sets `data-preferences-url` on <html> and the
+ * choice is also saved to the user, so it follows them to other devices.
  *
  * Changing the theme dispatches `theme-changed` on document, as the old app
  * did, so charts can recolour. `detail.theme` is the theme name and
@@ -18,6 +19,22 @@ function setCookie(name, value) {
     document.cookie = `${name}=${value};path=/;max-age=${ONE_YEAR};SameSite=Lax`;
 }
 
+/* Save to the user in the background. The change is already on screen, so a
+   failure only means it won't follow the user to another device. */
+function saveToUser(values) {
+    const url = document.documentElement.dataset.preferencesUrl;
+    if (!url) return;
+    fetch(url, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+        },
+        body: JSON.stringify(values),
+    }).catch(() => {});
+}
+
 export function currentScheme() {
     return getComputedStyle(document.documentElement).colorScheme.includes('light') ? 'light' : 'dark';
 }
@@ -26,6 +43,7 @@ export function setTheme(theme) {
     if (!THEMES.includes(theme)) return;
     document.documentElement.dataset.theme = theme;
     setCookie('theme', theme);
+    saveToUser({ theme });
 
     document.querySelectorAll('[data-theme-option]').forEach((button) => {
         button.setAttribute('aria-pressed', String(button.dataset.themeOption === theme));
@@ -41,6 +59,7 @@ export function setFontSize(size) {
     if (!FONT_SIZES.includes(size)) return;
     document.documentElement.dataset.fontSize = size;
     setCookie('font_size', size);
+    saveToUser({ font_size: size });
 
     document.querySelectorAll('[data-font-size-option]').forEach((button) => {
         button.setAttribute('aria-pressed', String(button.dataset.fontSizeOption === size));

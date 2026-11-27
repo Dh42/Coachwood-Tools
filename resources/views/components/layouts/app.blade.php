@@ -10,7 +10,7 @@
 --}}
 @props(['title' => null, 'breadcrumb' => null, 'heading' => null])
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="{{ \App\View\Preferences::theme() }}" data-font-size="{{ \App\View\Preferences::fontSize() }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="{{ \App\View\Preferences::theme() }}" data-font-size="{{ \App\View\Preferences::fontSize() }}"@auth data-preferences-url="{{ route('preferences.update') }}"@endauth>
 <head>
     <x-layouts.head :title="$title" />
 </head>

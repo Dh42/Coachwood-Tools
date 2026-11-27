@@ -16,7 +16,7 @@ final class Navigation
     {
         return [
             ['title' => 'Overview', 'items' => [
-                ['label' => 'Home', 'icon' => 'home', 'href' => url('/'), 'active' => request()->is('/')],
+                ['label' => 'Home', 'icon' => 'home', 'href' => route('dashboard'), 'active' => request()->routeIs('dashboard')],
             ]],
         ];
     }

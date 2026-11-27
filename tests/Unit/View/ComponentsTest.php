@@ -4,6 +4,8 @@ namespace Tests\Unit\View;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\MessageBag;
+use Illuminate\Support\ViewErrorBag;
 use Tests\TestCase;
 
 class ComponentsTest extends TestCase
@@ -86,5 +88,30 @@ class ComponentsTest extends TestCase
     {
         $this->assertStringContainsString('aria-hidden="true"', Blade::render('<x-icon name="home" />'));
         $this->assertStringContainsString('aria-label="Home"', Blade::render('<x-icon name="home" label="Home" />'));
+    }
+
+    public function test_a_form_field_links_its_label_and_shows_its_error_with_an_icon(): void
+    {
+        $errors = (new ViewErrorBag)->put('default', new MessageBag(['email' => ['The email field is required.']]));
+
+        view()->share('errors', $errors);
+        $html = Blade::render('<x-form-field name="email" label="Email" type="email" />');
+
+        $this->assertStringContainsString('<label for="email">Email</label>', $html);
+        $this->assertStringContainsString('aria-invalid="true"', $html);
+        $this->assertStringContainsString('aria-describedby="email-error"', $html);
+        $this->assertStringContainsString('The email field is required.', $html);
+        $this->assertStringContainsString('<svg', $html);
+    }
+
+    public function test_a_form_field_reads_a_named_error_bag_only(): void
+    {
+        $errors = (new ViewErrorBag)->put('default', new MessageBag(['password' => ['Wrong.']]));
+
+        view()->share('errors', $errors);
+        $html = Blade::render('<x-form-field name="password" label="Password" type="password" bag="userDeletion" />');
+
+        $this->assertStringNotContainsString('Wrong.', $html);
+        $this->assertStringNotContainsString('aria-invalid', $html);
     }
 }

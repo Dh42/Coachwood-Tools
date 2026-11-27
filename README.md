@@ -116,6 +116,34 @@ export PATH="/opt/plesk/node/26/bin:/opt/plesk/php/8.4/bin:$PATH" && php artisan
 
 Migrations run on every deploy. A migration must never call an outside API or run a heavy backfill. Those go in Artisan commands that Lesley starts on the server.
 
+## Signing in
+
+- **Accounts:** there is no registration page. Accounts come from the old app through `legacy:import-platform` (below), and later from Google sign-in (step 3f) and invitations (3g).
+- **Passwords:** password sign-in, "Forgot your password?" and the profile page work now. Addresses on a company Google Workspace domain are refused a reset link: those accounts sign in with Google.
+- **Roles:** `admin` and `user` are created by a migration. Admins pass every permission check (`Gate::before` in `AppServiceProvider`). Everyone else needs the permission itself, for example `tool.<slug>`.
+- **Disabled accounts** (`users.disabled_at`) are signed straight back out.
+- **Theme and text size:** saved to the user when signed in, so they follow them to other devices. The cookies are the fallback, and keep the sign-in page in the last theme used on that browser.
+
+## Imports from the old app
+
+### `legacy:import-platform`
+
+Copies the platform tables from `tools_db` through the read-only `legacy` connection. It is safe to run again: each run brings this app back in line with the old one. It prints counts only.
+
+```bash
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-platform --dry-run   # reports, then rolls back
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-platform
+```
+
+| Table | How |
+| --- | --- |
+| `users` | IDs preserved. Name, email, Google ID, password hash, verified and disabled dates are overwritten from the old app; the theme and text size chosen here are kept |
+| `roles`, `permissions` | Matched by name and guard |
+| User roles and direct permissions, role permissions | Replaced with the old app's for each imported user, re-mapped to the new IDs |
+| `google_workspace_domains` | Matched by domain |
+
+If an old user's email already belongs to a different user here, it stops before writing anything and names the IDs. Later platform slices add tools, teams, the activity log and scheduled tasks to this command.
+
 ## One-time commands
 
 ### `amazon:probe` (Phase 0)
