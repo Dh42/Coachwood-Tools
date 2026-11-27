@@ -13,7 +13,7 @@ Sources: `docs/build-spec.md`, `docs/decisions.md`, the old code at `~/PhpstormP
 | 1 | Skeleton: Laravel 13 on PHP 8.4, Pint, PHPUnit with ParaTest, CI on SQLite and MariaDB 10.11, read-only `legacy` connection, the external-writes switch, docs | No | 0 |
 | 2 | First deploy, then `amazon:probe` with the ported `SpApiClient` | No (reads only) | 12 (`SpApiClientTest`) |
 | 3 | Platform, in 8 slices (section 3) | Gmail sends only | 111 |
-| 4 | BioSteel App Stats | No | 49 + 20 shared |
+| 4 | BioSteel App Stats | No | 44 + 20 shared (the old team-totals correction migration and its 5 tests are not ported; see the step 4 context entry) |
 | 5 | Walmart US Listing Auditor | No | 30 |
 | 6 | US Product Reviews | No | 15 |
 | 7 | BioSteel Shopify Lost Sales (renamed Stockout) | No | 85 |

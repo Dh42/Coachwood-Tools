@@ -266,6 +266,39 @@
         color: var(--text);
     }
 
+    /* The same control built from radio inputs (forms that submit). */
+    .radio-segmented {
+        display: inline-grid;
+        border: 1px solid var(--border);
+        margin: 0;
+    }
+
+    .radio-segmented label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: var(--control-height-sm);
+        padding: 0 var(--space-3);
+        border-radius: var(--radius-pill);
+        color: var(--muted);
+        font: var(--weight-semibold) var(--text-xs) / 1 var(--font-sans);
+        cursor: pointer;
+    }
+
+    .radio-segmented input:checked + label {
+        background: var(--surface-2);
+        color: var(--text);
+    }
+
+    .radio-segmented input:focus-visible + label {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+    }
+
+    .stat-row-plain {
+        margin-bottom: var(--space-4);
+    }
+
     .user-chip {
         display: flex;
         align-items: center;
@@ -607,6 +640,120 @@
         word-break: break-word;
     }
 
+    /* Delta values: the sign is always shown, so colour is never the only cue. */
+    .delta-up {
+        color: var(--good);
+    }
+
+    .delta-down {
+        color: var(--bad);
+    }
+
+    .chart-box {
+        position: relative;
+        height: 14rem;
+    }
+
+    .chart-box-lg {
+        height: 18rem;
+    }
+
+    .scroll-box {
+        max-height: 22rem;
+        overflow: auto;
+    }
+
+    /* BioSteel App Stats: while its PDF export takes the picture, hide the
+       controls and let scrolling tables show every row. */
+    .tas-exporting #tas-controls,
+    .tas-exporting #tas-header-buttons {
+        display: none !important;
+    }
+
+    .tas-exporting .scroll-box {
+        max-height: none;
+        overflow: visible;
+    }
+
+    /* Page tours (intro.js), restyled to the theme. */
+    .introjs-tooltip {
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-overlay);
+        font-family: var(--font-sans);
+    }
+
+    .introjs-tooltiptext {
+        font-size: var(--text-sm);
+        line-height: var(--leading-body);
+    }
+
+    .introjs-arrow.top,
+    .introjs-arrow.top-middle,
+    .introjs-arrow.top-right {
+        border-bottom-color: var(--surface);
+    }
+
+    .introjs-arrow.bottom,
+    .introjs-arrow.bottom-middle,
+    .introjs-arrow.bottom-right {
+        border-top-color: var(--surface);
+    }
+
+    .introjs-arrow.left,
+    .introjs-arrow.left-bottom {
+        border-right-color: var(--surface);
+    }
+
+    .introjs-arrow.right,
+    .introjs-arrow.right-bottom {
+        border-left-color: var(--surface);
+    }
+
+    .introjs-helperLayer {
+        border-radius: var(--radius-lg);
+        box-shadow: 0 0 0 2px var(--accent), 0 0 0 5000px color-mix(in srgb, var(--bg) 70%, transparent) !important;
+    }
+
+    .introjs-button {
+        border-radius: var(--radius-pill);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        text-shadow: none;
+        font: var(--weight-semibold) var(--text-xs) / 1 var(--font-sans);
+        padding: var(--space-2) var(--space-3);
+    }
+
+    .introjs-button:hover,
+    .introjs-button:focus {
+        background: var(--surface-2);
+        color: var(--text);
+        border-color: var(--border);
+        box-shadow: none;
+    }
+
+    .introjs-nextbutton,
+    .introjs-donebutton {
+        background: var(--accent);
+        color: var(--accent-ink);
+        border-color: transparent;
+    }
+
+    .introjs-skipbutton {
+        color: var(--muted);
+    }
+
+    .introjs-progress {
+        background: var(--surface-2);
+    }
+
+    .introjs-progressbar {
+        background: var(--accent);
+    }
+
     .pagination {
         display: flex;
         align-items: center;
@@ -639,6 +786,9 @@
 
     /* ---- Surfaces ---- */
     .card {
+        /* A grid or flex item: let it shrink to the track, so a chart's
+           canvas can't push it wider than the screen. */
+        min-width: 0;
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: var(--radius-xl);

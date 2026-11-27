@@ -25,7 +25,10 @@ class SchedulerPagesTest extends TestCase
 
     public function test_the_heartbeat_and_activity_clean_up_are_registered_by_migration(): void
     {
-        $this->assertEqualsCanonicalizing(['scheduler:heartbeat', 'activitylog:clean --force'], ScheduledTask::query()->pluck('command')->all());
+        $commands = ScheduledTask::query()->pluck('command')->all();
+
+        $this->assertContains('scheduler:heartbeat', $commands);
+        $this->assertContains('activitylog:clean --force', $commands);
     }
 
     public function test_a_registration_creates_the_task_once_and_never_overwrites_an_admins_changes(): void

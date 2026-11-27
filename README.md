@@ -210,6 +210,24 @@ Registering only inserts (`command` is unique), so it never overwrites an admin'
 
 **Registered now:** `scheduler:heartbeat` (every 5 minutes, proves the pipeline runs) and `activitylog:clean --force` (daily 03:15 UTC, the 365-day retention).
 
+## Tools
+
+### BioSteel Teams App Stats (`/tools/team-app-stats`, `tool.team-app-stats`)
+
+Ported from the old app (plan section 5.1). Reads only: nothing is written to an outside system.
+
+- **Data:**
+  - `team-app-stats:snapshot`, hourly: user and team totals and the sport breakdown from the BioSteel Teams API.
+  - `team-app-stats:collect-ads`, at 06:00, 12:00 and 18:00 UTC: yesterday's Google Ad Manager numbers. It runs three times because Ad Manager revises a day for hours afterwards.
+  - `team-app-stats:snapshot-social`, at 23:55 Toronto time: the week's Social Insights leaderboards, stamped with the Toronto date. These rows hold app users' emails and phone numbers, so treat the tables as confidential.
+- **Live on page load, never stored:** Google Analytics (GA4) for the app and for the sponsorship QR campaign (GA4 counts each user once per query window, so stored daily numbers can't be summed), and the live Social Insights leaderboards.
+- **Page:** date range and granularity, KPIs, charts, sport breakdown, ads, GA4, the QR campaign, social leaderboards and their history, and the raw data table. Also:
+  - **Tutorial:** the guided tour.
+  - **Settings:** a display multiplier for screenshots, kept in a cookie. It scales counts, never ratios.
+  - **PDF and CSV export** of what's on screen.
+- **Settings (`.env`):** `BIOSTEEL_TEAMS_BASE_URL`, `BIOSTEEL_TEAMS_USERNAME` and `BIOSTEEL_TEAMS_PASSWORD`, plus `GOOGLE_TEAM_APP_STATS_KEY_FILE`, the path to the service-account JSON key, outside `public/`. The Ad Manager report and the GA4 property IDs are in `config/team_app_stats.php`.
+- **Import and comparison:** `legacy:import-team-app-stats` (with `--dry-run`) and `compare:team-app-stats` (`--from`, `--to`; by default the 30 days to yesterday). See below.
+
 ## Imports from the old app
 
 ### `legacy:import-platform`
@@ -233,6 +251,24 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-platf
 | `scheduled_tasks` | Matched by command. The old app's enabled flag, schedule and timezone are copied onto tasks registered here; tasks not ported yet are not created. `asp:backfill` always stays disabled until cutover. Run history is not copied |
 
 It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Each ported tool adds its own tables to it.
+
+### `legacy:import-team-app-stats` and `compare:team-app-stats`
+
+```bash
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-team-app-stats --dry-run
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-team-app-stats
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:team-app-stats
+```
+
+| Table | How |
+| --- | --- |
+| `team_app_snapshots` | Upserted on `captured_at`; the old app's reading wins for an hour both apps captured. IDs are this app's own |
+| `team_app_category_snapshots` | Each imported snapshot's sport rows brought in line with the old app's, re-mapped to the new snapshot IDs |
+| `team_app_ad_snapshots` | Upserted on `date` |
+| `team_app_social_post_snapshots`, `team_app_social_follow_snapshots` | Upserted on (`captured_at`, `period`, `rank`) |
+| `team_app_snapshot_teams_backup`, `team_app_category_snapshots_backup` | The old team-totals correction's backups, re-mapped to the new snapshot IDs |
+
+The comparison runs the page's own report (`TeamAppStatsService`) against both databases for the same period. It prints row counts and a hash per section, and exits non-zero if any section differs.
 
 ## One-time commands
 

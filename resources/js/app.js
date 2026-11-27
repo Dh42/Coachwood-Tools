@@ -1,6 +1,7 @@
 import { initPreferences } from './preferences';
 import { initUi } from './ui';
 import { initDataTables } from './data-table';
+import { initTours } from './tour';
 import { Chart, chartTheme, themedChart, applyChartTheme, onThemeChange, seriesColor } from './chart-theme';
 
 // Pages with their own inline <script> (ported tools) use these globals.
@@ -15,4 +16,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initPreferences();
     initUi();
     initDataTables();
+    initTours();
 });

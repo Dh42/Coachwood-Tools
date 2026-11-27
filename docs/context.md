@@ -7,6 +7,62 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-29: step 4, BioSteel Teams App Stats (first tool)
+
+### Verified live (3h, reported by Lesley)
+- The `schedule:run` cron entry and `SCHEDULER_PHP_CLI_BINARY` are in place. Admin > Scheduler shows the heartbeat succeeding, and Run Now works. 3h merged as #15 after the CI fix (found issue 31).
+
+### What changed
+Branch `phase-0/team-app-stats`. Step 4 of the plan, section 5.1.
+
+- **Backend, ported unchanged:**
+  - `BioSteelTeamsClient` (shared with Team Sponsorship, step 10)
+  - `GoogleServiceAccountAuth`, `AdManagerClient`, `Ga4Client`, `SocialInsightsClient`, `TeamAppStatsService`
+  - the three commands, the controller and its seven routes, `config/team_app_stats.php`
+  - the five models
+  - `Order` and `OrderItem` with their two empty tables, since the client needs `Order::normalizeTeamName()`
+- **Registration** (`ToolRegistry`, `TaskRegistry`): the tool, under the "BioSteel Teams" group with the design's `phone` icon, uses the name and description the old app's admins last set. Its three tasks are registered with the old schedules. The social task runs in America/Toronto.
+- **Page:** rebuilt on the design tokens and shared components, keeping every element ID, `data-raw` attribute and `mult-*` class the old page and tests use. The script moved from inline to its own Vite entry, `resources/js/tools/team-app-stats.js`.
+  - Charts use the shared chart theme and recolour in place.
+  - GA4 charts are created once and fed new data, never rebuilt.
+  - html2canvas and jsPDF load only when PDF export is clicked.
+  - Changes use `hidden` instead of inline display styles, and a toast instead of `alert()`.
+  - Gains and losses show their sign as well as their colour.
+- **Tours (decision 2026-11-29, Lesley: keep them):** `resources/js/tour.js` (intro.js 8.5.0, styled from the tokens) and `<x-tour-button>`. The invitation email's "Tutorial button" line, left out in 3g, is back.
+- **Shared fixes found while building this:**
+  - `themedChart` coloured datasets after creating the chart and then refreshed with `update('none')`, which left bar charts Chart.js's default grey. The 3a gallery only had a line chart. Datasets are now coloured before creation, and a theme change does a full update.
+  - Cards in a grid could be pushed wider than the screen by a chart canvas on a phone; `.card` now has `min-width: 0`.
+- **Fixes** (`docs/found-issues.md`, each test failing on the old code first):
+  - **12:** the social snapshot is stamped with the Toronto date it ran on, not the UTC date (already the next day at 23:55 Toronto). Rows the old app wrote keep their dates.
+  - **20 (App Stats part):** malformed date filters fall back to the default range instead of a 500, and a backwards range is swapped. The Lost Sales part waits for step 7.
+- **Not ported:** the old team-totals correction migration (2026-09-30) and its 5 tests. The imported data is already corrected, and its source CSV holds real daily figures that must not be committed. Its two backup tables are created and copied, so the original values are kept.
+- **`legacy:import-team-app-stats`:**
+  - snapshots upserted on `captured_at`, with the old app's reading winning for an hour both apps captured
+  - sport rows brought in line and re-mapped to the new snapshot IDs
+  - ads on `date`, social rows on (`captured_at`, period, rank), and the backups re-mapped
+  - chunked with pauses, `--dry-run`, counts only
+- **`compare:team-app-stats`:** runs `TeamAppStatsService` (now able to take a connection) against both databases for a fixed period. Sections: hourly and daily series, sport breakdown, ads, and both social leaderboards. Counts and hashes only; it exits non-zero on any difference.
+
+### Test status
+349 tests, 1,203 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes, and the page's own script is about 15 kB. The six new migrations roll back and re-apply on MariaDB. CI's steps were replayed on a clean copy without `.env` before handing over.
+
+- **Carried over (64):** `BioSteelTeamsClientTest` 20, `TeamAppStatsTest` 21, `Ga4ClientTest` 5, `SocialInsightsClientTest` 5, the three command tests 3 + 3 + 4, and `AdManagerClientTest` 3. The social command test's "today" is now the Toronto date (fix 12); nothing else changed.
+- **New:** `TeamAppStatsFixesTest` 3, `TeamAppStatsPageTest` 4, `ImportTeamAppStatsTest` 8. `SchedulerPagesTest` now checks that the two platform tasks are present, rather than that they are the only ones.
+
+### Verified locally
+- **Against the restored `tools_db` copy** (into a throwaway MariaDB, since removed): the import copied 3,536 snapshots, 15,719 sport rows, 139 ad days, 1,892 and 1,900 social rows, and 2,188 and 20,277 backup rows, in about 13 seconds. A second run added nothing. `compare:team-app-stats` for 2026-10-01 to 2026-11-23 matched in all six sections.
+- **In headless Chrome, with made-up numbers:** the page at 1280px and at 390px, with the charts coloured, the GA4 and social error notices (no credentials locally) and the phone layout.
+- **Not verified:** live GA4, Ad Manager and Social Insights calls (they need the server's credentials), the tour, and PDF export in a real browser.
+
+### Next step
+- Lesley pushes the branch; it merges itself.
+- **On the server**, in `.env`:
+  - `BIOSTEEL_TEAMS_USERNAME` and `BIOSTEEL_TEAMS_PASSWORD`. **Rotate the password first** (the open security item about the exposed BioSteel Teams credential), then update it in the old app's `.env` too.
+  - `GOOGLE_TEAM_APP_STATS_KEY_FILE`, with the key file copied to that path outside `httpdocs/` and readable by the site user.
+  - Then `php artisan optimize`.
+- **Then on the server:** `legacy:import-platform` (to copy the tool's order and task settings), `legacy:import-team-app-stats --dry-run`, the import itself, then `compare:team-app-stats`.
+- Then step 5: Walmart US Listing Auditor.
+
 ## 2026-11-29: step 3h, scheduler (platform complete)
 
 ### What changed
