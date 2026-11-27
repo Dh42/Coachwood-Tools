@@ -20,10 +20,11 @@ Branch `phase-0/scheduler`. Slice 3h, the last of the platform (plan section 3).
   - **18:** `scheduled_tasks.command` is unique, so registrations are idempotent, and failure emails skip disabled admins.
   - **30:** `activitylog:clean --force` runs daily at 03:15 UTC. `--force` is needed because Spatie's command asks for confirmation in production and gives up when nobody answers.
   - **New:** a failure email that can't be sent (for example, Gmail not connected) is logged instead of breaking the run record. `App\Scheduling\FailureAlert` sends for both the cron path and Run Now.
+- **CI fix (found issue 31):** the first push failed CI (run #20: Pint and both test jobs). The old `routes/console.php` queried `scheduled_tasks` on every Artisan command. CI's `composer install` runs `artisan package:discover` before any database exists, so the install failed. Registration moved to `withSchedule` in `bootstrap/app.php`, which runs only for scheduler commands. `ArtisanWithoutDatabaseTest` runs a real `artisan package:discover` against a missing database; it failed before the fix. Local runs never caught it, because the local `.env` points at a live database. CI's steps were then replayed on a clean copy without `.env`: install, Pint and tests all pass, and `schedule:list` still lists both tasks.
 - **Import:** `legacy:import-platform` copies each old task's enabled flag, schedule and timezone onto tasks registered here, matched by command. `asp:backfill` always stays disabled (plan section 2, rule 6). Tasks not ported yet are not created, and run history is not copied (plan section 3). Today only the heartbeat matches, and its settings are the same, so nothing changes.
 
 ### Test status
-269 tests, 959 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. The four new migrations roll back and re-apply on MariaDB.
+270 tests, 960 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. The four new migrations roll back and re-apply on MariaDB.
 
 - **Carried over (16):** `ScheduleManagementTest` 6, `ScheduleExecuteRunCommandTest` 3, `BackgroundProcessLauncherTest` 4, `ScheduledTaskRegistrationTest` 2, `SchedulerHeartbeatRunHistoryTest` 1. In two of them the setup now removes the heartbeat row the migration registers before adding its own, because `command` is unique (fix 18). The assertions are unchanged.
 - **New:**

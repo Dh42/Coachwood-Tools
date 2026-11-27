@@ -189,7 +189,7 @@ All under `/admin`, for the `admin` role only. The sidebar's Admin group links t
 
 ## Scheduler
 
-Database-driven, as in the old app. The server has **one** cron entry (Deploying, one-time setup) running `schedule:run` every minute; `routes/console.php` registers every enabled `scheduled_tasks` row onto Laravel's scheduler, with `withoutOverlapping()`. Each run is recorded in `scheduled_task_runs`.
+Database-driven, as in the old app. The server has **one** cron entry (Deploying, one-time setup) running `schedule:run` every minute; `withSchedule` in `bootstrap/app.php` registers every enabled `scheduled_tasks` row onto Laravel's scheduler, with `withoutOverlapping()`. It runs only for scheduler commands, so other Artisan commands (and `composer install`) don't need the database. Each run is recorded in `scheduled_task_runs`.
 
 **Adding a task:** register it in the tool's migration, like a tool:
 
