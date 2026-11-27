@@ -120,7 +120,7 @@ Migrations run on every deploy. A migration must never call an outside API or ru
 
 Sign-in is **Google only** (decision 2026-11-27): no passwords, no password reset, no registration.
 
-- **Who can get in:** the Google OAuth client is internal to the org. On top of that, the app only accepts Workspace accounts (Google's `hd` claim) on a domain in `google_workspace_domains`. With no domain in that table, nobody can sign in. `legacy:import-platform` copies the domains; Admin > Google Sign-In (3f) manages them.
+- **Who can get in:** the Google OAuth client is internal to the org. On top of that, the app only accepts Workspace accounts (Google's `hd` claim) on a domain in `google_workspace_domains`. With no domain in that table, nobody can sign in. `legacy:import-platform` copies the domains; Admin > Google Sign-In manages them.
 - **First sign-in:** an imported account is linked to the Google account with the same email. Someone with no account gets one with the `user` role, or `admin` if their email is `INITIAL_ADMIN_EMAIL`. An email already linked to a different Google account is refused.
 - **Roles:** `admin` and `user` are created by a migration. Admins pass every permission check (`Gate::before` in `AppServiceProvider`). Everyone else needs the permission itself, for example `tool.<slug>`.
 - **Disabled accounts** (`users.disabled_at`) are refused at sign-in and signed out on their next request, remember-me cookie or not.
@@ -183,6 +183,7 @@ All under `/admin`, for the `admin` role only. The sidebar's Admin group links t
 - **Teams** (`/admin/teams`): named groups of people. No tool uses them yet.
 - **Tools** (`/admin/tools`): see Tools registry.
 - **Activity** (`/admin/activity`): the activity log, newest first, 25 a page, filtered by category.
+- **Google Sign-In** (`/admin/settings/google-domains`): the Workspace domains allowed to sign in. With none, nobody can sign in, so removing the last one warns that it locks everyone out, admins included. Adding and removing are logged.
 
 ## Imports from the old app
 

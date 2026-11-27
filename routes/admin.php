@@ -1,15 +1,15 @@
 <?php
 
 use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\GoogleDomainController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\ToolController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
 // Admin pages. Ported route by route as each slice lands; names and URLs
-// are the old app's. Google Sign-In comes in 3f, Mail and inviting users
-// (users.create, users.store, users.resend-invitation) in 3g, and the
-// Scheduler in 3h.
+// are the old app's. Mail and inviting users (users.create, users.store,
+// users.resend-invitation) come in 3g, and the Scheduler in 3h.
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::redirect('/', '/admin/users')->name('dashboard');
 
@@ -28,4 +28,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::patch('users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
 
     Route::get('activity', [ActivityLogController::class, 'index'])->name('activity.index');
+
+    Route::get('settings/google-domains', [GoogleDomainController::class, 'index'])->name('google-domains.index');
+    Route::post('settings/google-domains', [GoogleDomainController::class, 'store'])->name('google-domains.store');
+    Route::delete('settings/google-domains/{googleWorkspaceDomain}', [GoogleDomainController::class, 'destroy'])->name('google-domains.destroy');
 });
