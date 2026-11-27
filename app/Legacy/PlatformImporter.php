@@ -36,6 +36,9 @@ use Spatie\Permission\PermissionRegistrar;
  *   schedule and timezone are copied onto tasks registered here. Tasks not
  *   ported yet are not created, and `asp:backfill` always stays disabled
  *   until cutover (plan section 2, rule 6). Run history is not copied
+ * - renamed tools (decision D7): the old slug's order, active flag and
+ *   `tool.<slug>` grants move to the new slug. The old permission is not
+ *   created here
  * It reports counts only, never names, emails or other values.
  */
 final class PlatformImporter
@@ -44,6 +47,16 @@ final class PlatformImporter
     private const USER_COLUMNS = ['id', 'name', 'email', 'google_id', 'email_verified_at', 'disabled_at', 'created_at', 'updated_at'];
 
     private const CHUNK = 1000;
+
+    /** Old slug => new slug, for tools renamed in this app (decision D7). */
+    public const RENAMED_TOOLS = ['stockout' => 'biosteel-shopify-lost-sales'];
+
+    /**
+     * Task => the task whose enabled flag it takes, whatever the old app says
+     * of its own. The old app left the snapshot clean-up off while the sweep
+     * ran, so its table grew without limit (decision 2026-12-01).
+     */
+    public const ENABLED_WITH = ['stockout:prune-snapshots' => 'stockout:snapshot-inventory'];
 
     private const ACTIVITY_COLUMNS = ['id', 'log_name', 'description', 'subject_type', 'event', 'subject_id', 'causer_type', 'causer_id', 'properties', 'batch_uuid', 'created_at', 'updated_at'];
 
@@ -142,6 +155,9 @@ final class PlatformImporter
     private function importByName(string $table): array
     {
         $old = $this->legacy->table($table)->orderBy('id')->get(['id', 'name', 'guard_name', 'created_at', 'updated_at']);
+        if ($table === 'permissions') {
+            $old->each(fn ($row) => $row->name = $this->renamedPermission($row->name));
+        }
         $new = 0;
 
         foreach ($old as $row) {
@@ -157,6 +173,17 @@ final class PlatformImporter
         $this->report[$table] = ['read' => $old->count(), 'new' => $new, 'updated' => 0, 'removed' => 0];
 
         return $old->mapWithKeys(fn ($row) => [(int) $row->id => $ids[$row->guard_name."\0".$row->name]])->all();
+    }
+
+    private function renamedPermission(string $name): string
+    {
+        foreach (self::RENAMED_TOOLS as $from => $to) {
+            if ($name === "tool.{$from}") {
+                return "tool.{$to}";
+            }
+        }
+
+        return $name;
     }
 
     private function importDomains(): void
@@ -343,11 +370,13 @@ final class PlatformImporter
     private function importScheduledTasks(): void
     {
         $old = $this->legacy->table('scheduled_tasks')->get(['command', 'enabled', 'cron_expression', 'timezone']);
+        $oldEnabled = $old->mapWithKeys(fn ($row) => [$row->command => (bool) $row->enabled]);
         $updated = 0;
 
         foreach ($old as $row) {
+            $enabled = isset(self::ENABLED_WITH[$row->command]) ? (bool) $oldEnabled->get(self::ENABLED_WITH[$row->command], false) : (bool) $row->enabled;
             $values = [
-                'enabled' => (bool) $row->enabled && ! in_array($row->command, self::DISABLED_UNTIL_CUTOVER, true),
+                'enabled' => $enabled && ! in_array($row->command, self::DISABLED_UNTIL_CUTOVER, true),
                 'cron_expression' => $row->cron_expression,
                 'timezone' => $row->timezone,
             ];
@@ -368,7 +397,7 @@ final class PlatformImporter
         $updated = 0;
 
         foreach ($old as $row) {
-            $updated += $this->db->table('tools')->where('slug', $row->slug)
+            $updated += $this->db->table('tools')->where('slug', self::RENAMED_TOOLS[$row->slug] ?? $row->slug)
                 ->where(fn ($query) => $query->where('active', '!=', (bool) $row->active)->orWhere('sort_order', '!=', (int) $row->sort_order))
                 ->update(['active' => (bool) $row->active, 'sort_order' => (int) $row->sort_order, 'updated_at' => now()]);
         }

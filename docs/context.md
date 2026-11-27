@@ -7,6 +7,67 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-02: step 7, BioSteel Shopify Lost Sales
+
+### What changed
+Branch `phase-0/biosteel-shopify-lost-sales`, from `main` after #20 (step 6) merged. Step 7 of the plan, section 5.4.
+
+- **Ported unchanged:**
+  - `config/stockout.php` and `App\Support\HttpRetry`.
+  - The seven `App\Services\Stockout` classes and three models.
+  - The seven `stockout:*` commands.
+  - The webhook controller and `VerifyShopifyWebhook` (alias `verify.shopify-webhook`; `webhooks/*` is exempt from CSRF).
+  - `StockoutController`. Its class name stays, as the plan's rename scope says.
+- **Tables:** one migration creates the six tables in the old app's final shape, including the `inv_snap_item_time_variant` index from the 2026-11-16 incident and `inventory_item_variants`.
+- **Renamed (decision D7):** the tool is now `biosteel-shopify-lost-sales`, under a new "BioSteel Shopify" sidebar group with the `trend-down` icon. `/tools/stockout` redirects with a 301, keeping the date range.
+- **Platform import:**
+  - `PlatformImporter::RENAMED_TOOLS` moves the old slug's order and active flag to the new slug, and turns `tool.stockout` grants into `tool.biosteel-shopify-lost-sales`. The old permission is not created here.
+  - `ENABLED_WITH` gives `stockout:prune-snapshots` the sweep's enabled flag.
+- **Lesley's decision (2026-12-02):** the snapshot clean-up runs wherever the sweep runs. In the old app the sweep is on and the clean-up is off. Recorded in `decisions.md`, and plan 5.4 is updated.
+- **Page:** rebuilt on the design.
+  - Date range with server-side preset links, replacing the old inline script.
+  - Totals, with the confidence counts as labelled badges.
+  - "How this is calculated" as a collapsible card.
+  - A sortable, filterable table with CSV export.
+  - The RTD→PET rows say "PET cover" and show the note in the row, where the old page had a hover-only icon.
+  - The Tutorial tour is kept.
+- **Found issue #20 (Lost Sales part) fixed:** a malformed date returned a 500. It is now ignored: that side of the range has no bound, as when it's left blank. Tests written first and seen failing.
+- **`stockout:register-webhook` now goes through `ExternalWrites`** before `webhookSubscriptionCreate`. Plan 5.4 says it isn't run here until cutover. The list query, a read, still runs.
+- **`legacy:import-lost-sales` (new):**
+  - Daily history is upserted on (product title, day).
+  - Intervals and estimates are mirrored with their IDs.
+  - Snapshots are not copied.
+- **`compare:lost-sales` (new):** compares the four tables by hash. The normalising and hashing moved to `App\Legacy\RowHasher`, now shared with `compare:us-product-reviews`.
+
+### Test status
+519 tests, 1,689 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. Both new migrations roll back and re-apply on MariaDB. CI's steps were replayed on a clean copy without `.env`.
+
+- **Carried over (85).** Pint reformatted the copied code; behaviour is unchanged. Four tests were changed on purpose, each with a comment:
+  - `StockoutTest`: the new slug and route name.
+  - `StockoutPruneSnapshotsCommandTest`: the `asp_ingest_log` index check moves to the ASP Trackers step, and the clean-up is registered enabled, like the sweep.
+  - `StockoutRegisterWebhookCommandTest`: external writes are turned on in its setup.
+- **New:** `LostSalesFixesTest` 5, `ImportLostSalesTest` 6, and 2 in `ImportPlatformTest`.
+
+### Verified locally
+- **Against the restored `tools_db` copy** (into a throwaway MariaDB, since removed):
+  - `legacy:import-platform`: 6 users' `tool.stockout` grants became `tool.biosteel-shopify-lost-sales`, with no `tool.stockout` permission created. The tool took the old order (22) and active flag. Both tasks are enabled.
+  - `legacy:import-lost-sales`: 53,697 inventory days, 22,150 sales days, 258 intervals and 414 estimates (two batches), in about 25 seconds. A second run added and removed nothing.
+  - `compare:lost-sales` matched in all four sections.
+- **In headless Chrome, with made-up data:** the page at desktop and phone widths, with the card open and closed. The first screenshots caught doubled spacing between sections and an unstyled "How this is calculated" heading. Both were fixed and checked again.
+- **Not verified:** a live sweep. It needs the server's `STOCKOUT_SHOPIFY_*` settings; the first scheduled run after deploy shows it.
+
+### Open questions
+- The old app's local copy has no `inventory_snapshots` rows (0). That doesn't matter here, because snapshots aren't imported.
+- **Verified live (step 6):** Lesley ran the step 6 imports and comparison on the server: all seven sections matched, with the same hashes as the local copy.
+
+### Next step
+- Lesley pushes the branch; it merges itself.
+- **On the server:**
+  - Check `SHOPIFY_STORE`, `STOCKOUT_SHOPIFY_CLIENT_ID` and `STOCKOUT_SHOPIFY_CLIENT_SECRET` are in `.env`.
+  - Run `legacy:import-platform` (moves access and settings to the new name), then `legacy:import-lost-sales` (`--dry-run` first), then `compare:lost-sales`.
+  - Then Run Now on "Lost Sales Inventory Snapshot" in Admin > Scheduler, as the live check of the sweep.
+- Then step 8: CDQ Listing Quality Report.
+
 ## 2026-12-01: step 6, US Product Reviews
 
 ### What changed

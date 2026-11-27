@@ -251,6 +251,16 @@ Ported from the old app (plan section 5.3). Reads only.
 - **Page:** a summary of every ASIN (catalog, pull status, topic counts, top topics; sortable, filterable, CSV, Copy ASINs) and a detail page per ASIN (`?asin=`). Each topic is labelled positive or negative, with occurrence and star impact against the category, the 6-month trend, snippets and subtopics. The page has a Tutorial tour.
 - **Settings:** the SP-API settings from step 2 (`SP_API_SELLER_REFRESH_TOKEN` and the client ID and secret).
 
+### BioSteel Shopify Lost Sales (`/tools/biosteel-shopify-lost-sales`, `tool.biosteel-shopify-lost-sales`)
+
+Ported from the old app's Stockout Lost Sales Estimator and renamed (decision D7). `/tools/stockout` redirects here (301, keeping the date range). Internal names stay: `config/stockout.php`, the `stockout:*` commands and the `STOCKOUT_*` settings. Reads only.
+
+- **Page:** the latest batch of estimates, ranked by revenue lost, for a date range (presets 7/14/30/60 days or All time). A stockout overlapping the range counts only for its days inside it. Totals, confidence counts, a "How this is calculated" card, sortable and filterable table, CSV, and a Tutorial tour.
+- **Scheduled:** `stockout:snapshot-inventory` every 15 minutes (a read-only sweep of every tracked variant's stock into `inventory_snapshots`) and `stockout:prune-snapshots` hourly at :17 (keeps `STOCKOUT_SNAPSHOT_RETENTION_DAYS`, default 90). The clean-up runs wherever the sweep does.
+- **By hand:** `stockout:import-shopifyql-history` and `stockout:import-shopifyql-sales-history` (backfill the daily history from ShopifyQL), then `stockout:derive-intervals` and `stockout:estimate-lost-sales`. Not run here before cutover: the import copies the old app's results.
+- **Webhook:** `POST /webhooks/shopify/inventory-levels-update`, HMAC-checked with `STOCKOUT_SHOPIFY_CLIENT_SECRET`, one primary-key read and one insert. No subscription points at this app until cutover. `stockout:register-webhook` creates one only when `TOOLS_EXTERNAL_WRITES=true`.
+- **Settings:** `SHOPIFY_STORE`, `STOCKOUT_SHOPIFY_CLIENT_ID`, `STOCKOUT_SHOPIFY_CLIENT_SECRET` (the tool's own custom app; the access token is fetched and cached for 20 hours).
+
 ### Shared product lists
 
 `products` (Vendor Central, .ca) and `sc_products` (Seller Central, US) are read-only copies of the old app's tables until Phase 1 rebuilds the catalog (plan section 5, "Shared tables"). `legacy:import-products` mirrors them, IDs included, and runs daily at 00:30 UTC as the "Products Sync From Old App" task.
@@ -273,9 +283,9 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-platf
 | User roles and direct permissions, role permissions | Replaced with the old app's for each imported user, re-mapped to the new IDs |
 | `google_workspace_domains` | Matched by domain |
 | `activity_log` | Matched on `legacy_id` (the old row's ID). This app's own entries are kept. Read 1,000 rows at a time with a short pause between |
-| `tools` | Matched by slug. The old app's order and active flag are copied onto tools already registered here. Tools not ported yet are not created |
+| `tools` | Matched by slug. The old app's order and active flag are copied onto tools already registered here. Tools not ported yet are not created. A renamed tool (`stockout` is now `biosteel-shopify-lost-sales`) takes the old slug's order and flag, and the old `tool.stockout` grants become `tool.biosteel-shopify-lost-sales` |
 | `teams`, `team_user` | Team IDs preserved. Each imported team's members are brought in line with the old app. A team name already used by a different ID here stops the import |
-| `scheduled_tasks` | Matched by command. The old app's enabled flag, schedule and timezone are copied onto tasks registered here; tasks not ported yet are not created. `asp:backfill` always stays disabled until cutover. Run history is not copied |
+| `scheduled_tasks` | Matched by command. The old app's enabled flag, schedule and timezone are copied onto tasks registered here; tasks not ported yet are not created. `asp:backfill` always stays disabled until cutover, and `stockout:prune-snapshots` always takes `stockout:snapshot-inventory`'s flag (decision 2026-12-02). Run history is not copied |
 
 It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Each ported tool adds its own tables to it.
 
@@ -328,6 +338,22 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:us-product-
 Both imports mirror the old tables exactly, IDs included (`App\Legacy\TableMirror`): rows are upserted on `id`, and rows the old app doesn't have are deleted, children first. For the six `feedback_*` tables, this means rows this app's own collectors wrote during shadow running are replaced by the old app's, so the two apps' IDs never collide (plan section 6, "The old app wins").
 
 The comparison runs the summary page's query against both databases and hashes every row of the six tables, raw responses included. Run it right after the import: once this app's collector has run again, it differs until the next import.
+
+### `legacy:import-lost-sales` and `compare:lost-sales`
+
+```bash
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-lost-sales --dry-run
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-lost-sales
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:lost-sales
+```
+
+| Table | How |
+| --- | --- |
+| `inventory_history_daily`, `sales_history_daily` | Upserted on (product title, day); the old app's values win. IDs are this app's own |
+| `variant_availability_intervals`, `lost_sales_estimates` | An exact copy, IDs included (`TableMirror`) |
+| `inventory_snapshots` | Not copied (spec 14.1). This app's sweep fills it |
+
+The comparison hashes every row the page reads in both databases: the history tables on (product title, day), intervals and estimates whole. Counts and hashes only.
 
 ## One-time commands
 

@@ -16,7 +16,7 @@ Sources: `docs/build-spec.md`, `docs/decisions.md`, the old code at `~/PhpstormP
 | 4 | BioSteel App Stats | No | 44 + 20 shared (the old team-totals correction migration and its 5 tests are not ported; see the step 4 context entry) |
 | 5 | Walmart US Listing Auditor | No | 30 (all unchanged) |
 | 6 | US Product Reviews | No | 15 |
-| 7 | BioSteel Shopify Lost Sales (renamed Stockout) | No | 85 |
+| 7 | BioSteel Shopify Lost Sales (renamed Stockout) | No | 85 (4 changed on purpose; see the step 7 context entry) |
 | 8 | CDQ Listing Quality Report | No (Anthropic calls cost money) | 61 |
 | 9 | ASP Tracker, Canadian Protein and BioSteel | Shopify bulk operations | 33 |
 | 10 | Team Sponsorship and Team Sponsorship Stats | Shopify draft orders, invoice emails, Klaviyo | 58 |
@@ -142,7 +142,7 @@ R = reads, W = writes. "Sync at cutover" names what the final sync must bring ac
 | Route and permission | New: `/tools/biosteel-shopify-lost-sales`, `tool.biosteel-shopify-lost-sales`. `/tools/stockout` redirects. Webhook `/webhooks/shopify/inventory-levels-update` unchanged |
 | Rename scope | Only the name, URL, route names, permission and view folder change. Internal names stay: `config/stockout.php`, `stockout:*` commands, `STOCKOUT_*` env keys. Existing user grants move to the new permission on import |
 | Tables | `inventory_snapshots` (history **not** imported, per spec 14.1), `inventory_item_variants`, `inventory_history_daily`, `sales_history_daily`, `variant_availability_intervals`, `lost_sales_estimates` |
-| Scheduled | `stockout:snapshot-inventory` every 15 min, `stockout:prune-snapshots` hourly. Enabled flags copied from the old app, so the prune runs wherever the sweep runs |
+| Scheduled | `stockout:snapshot-inventory` every 15 min, `stockout:prune-snapshots` hourly. The sweep's enabled flag is copied from the old app, and the prune always takes the sweep's flag (decision 2026-12-02) |
 | External | R: Shopify GraphQL and ShopifyQL on its own custom app. W: `webhookSubscriptionCreate`, run by hand. Not run in the new app until cutover |
 | Import | Upsert the daily history tables on (product title, day). Copy intervals and estimates. Do not copy snapshot history |
 | Sync at cutover | Daily history and estimates |
