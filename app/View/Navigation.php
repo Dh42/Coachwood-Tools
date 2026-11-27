@@ -2,22 +2,54 @@
 
 namespace App\View;
 
+use App\Models\Tool;
+use Illuminate\Support\Str;
+
 /**
- * The sidebar's groups. Until the tools registry is ported (step 3d) this is
- * only Home; 3d replaces it with the tools the signed-in user can open,
- * grouped and ordered as in Admin > Tools.
+ * The sidebar's groups: Home, then the tools the signed-in user can open,
+ * grouped and ordered as in Admin > Tools, then Admin for admins.
  *
- * @phpstan-type Item array{label: string, icon: string, href: string, active: bool, badge?: array{count: int, tone: string, label: string}}
+ * @phpstan-type Item array{label: string, icon: ?string, href: string, active: bool, badge?: array{count: int, tone: string, label: string}}
  */
 final class Navigation
 {
     /** @return list<array{title: string, items: list<Item>}> */
     public static function groups(): array
     {
-        return [
+        $user = auth()->user();
+
+        $groups = [
             ['title' => 'Overview', 'items' => [
                 ['label' => 'Home', 'icon' => 'home', 'href' => route('dashboard'), 'active' => request()->routeIs('dashboard')],
             ]],
         ];
+
+        foreach (Tool::grouped(Tool::visibleTo($user)) as $title => $tools) {
+            $items = [];
+            foreach ($tools as $tool) {
+                if ($tool->url) {
+                    $items[] = ['label' => $tool->name, 'icon' => $tool->icon, 'href' => url($tool->url), 'active' => self::isCurrent($tool->url)];
+                }
+            }
+            if ($items !== []) {
+                $groups[] = ['title' => $title, 'items' => $items];
+            }
+        }
+
+        if ($user?->hasRole('admin')) {
+            $groups[] = ['title' => 'Admin', 'items' => [
+                ['label' => 'Tools', 'icon' => 'sliders', 'href' => route('admin.tools.index'), 'active' => request()->routeIs('admin.tools.*')],
+            ]];
+        }
+
+        return $groups;
+    }
+
+    /** The tool's own page or any page under it. */
+    private static function isCurrent(string $url): bool
+    {
+        $path = trim((string) parse_url($url, PHP_URL_PATH), '/');
+
+        return $path !== '' && (request()->is($path) || request()->is($path.'/*') || Str::startsWith(request()->path(), $path.'/'));
     }
 }

@@ -146,6 +146,35 @@ Code anywhere can log its own events under its own name:
 activity('tool.invoicing')->causedBy($user)->performedOn($invoice)->log('Invoice approved');
 ```
 
+## Tools registry
+
+Each tool is a row in `tools` with a `tool.<slug>` permission. The home launcher and the sidebar show the active tools a user may open, grouped by `group` (empty shows under "Tools") and in Admin > Tools order. Admins see every active tool. An inactive tool is hidden from everyone.
+
+**Adding a tool:** register it in a migration, so the deploy that adds the tool also adds its entry and permission:
+
+```php
+public function up(): void
+{
+    ToolRegistry::register([
+        'slug' => 'po-checker',               // permission: tool.po-checker
+        'name' => 'PO Checker',
+        'description' => 'Check a POItemExport against Cin7 stock.',
+        'group' => 'Amazon · Purchase orders',
+        'icon' => 'box',                      // an App\View\Icons name, or an emoji
+        'url' => '/tools/po-checker',
+    ]);
+}
+
+public function down(): void
+{
+    ToolRegistry::unregister('po-checker');
+}
+```
+
+Registering only inserts, so it never overwrites what an admin changed. A new tool goes to the end of the order.
+
+**Admin > Tools** (`/admin/tools`): add, edit and delete tools, and reorder them by dragging or with the Move up and Move down buttons. Deleting a tool removes its permission and every grant of it.
+
 ## Imports from the old app
 
 ### `legacy:import-platform`
@@ -164,8 +193,9 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-platf
 | User roles and direct permissions, role permissions | Replaced with the old app's for each imported user, re-mapped to the new IDs |
 | `google_workspace_domains` | Matched by domain |
 | `activity_log` | Matched on `legacy_id` (the old row's ID). This app's own entries are kept. Read 1,000 rows at a time with a short pause between |
+| `tools` | Matched by slug. The old app's order and active flag are copied onto tools already registered here. Tools not ported yet are not created |
 
-It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Later platform slices add tools, teams and scheduled tasks to this command.
+It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Later platform slices add teams and scheduled tasks to this command.
 
 ## One-time commands
 

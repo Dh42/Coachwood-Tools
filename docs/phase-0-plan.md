@@ -54,7 +54,7 @@ Ported in this order, from the platform inventory:
 | 3a | Page shell on design tokens: layouts, navigation, theme switch with the `theme-changed` event, font size, the 500 page, shared Blade components (spec section 15), a shared chart-theme helper | 1 |
 | 3b | Users, Google sign-in (the only way in, decision 2026-11-27), profile, roles `admin` and `user` (seeded by migration this time, not by a manual seeder), Spatie permissions, `Gate::before` for admins, the user part of `legacy:import-platform` | 26 (password tests replaced, Google tests added) |
 | 3c | Activity log (365-day retention as today), the `auth` log lines, the activity-log import | 3 (`AccountDeactivationTest`). The 4 `ActivityLogTest` cases each need a later slice and move with it: Tools (3d), deactivate and the viewer (3e), invitations (3g) |
-| 3d | Tools registry, the home launcher, Admin > Tools with drag ordering, the self-registration convention | 18 |
+| 3d | Tools registry, the home launcher, Admin > Tools with drag ordering, the self-registration convention | 16 (`ToolManagementTest` 10, `ToolPermissionGatingTest` 5, the tool case of `ActivityLogTest`) |
 | 3e | Admin > Users, Teams and Activity | 19 |
 | 3f | Admin > Google Sign-In (the domain list). Google sign-in itself moved to 3b | 8 |
 | 3g | Gmail transport, Admin > Mail settings, invitations (no password link, decision 2026-11-27) | 11 |
@@ -71,7 +71,7 @@ Routes, names and permissions stay as listed in the platform inventory (`/admin/
 | `users` | IDs preserved, because tool tables reference them |
 | `roles`, `permissions` | Matched by name |
 | User role and permission grants | Re-mapped to the new IDs |
-| `tools` | Matched by slug. The order and active flags are copied from the old app |
+| `tools` | Matched by slug. The order and active flags are copied from the old app onto tools already registered here; tools not ported yet are not created |
 | `scheduled_tasks` | Matched by command, except `asp:backfill` (section 2, rule 6) |
 | `teams`, `team_user` | IDs preserved |
 | `google_workspace_domains` | Copied |

@@ -22,7 +22,7 @@
             <div class="nav-group">{{ $group['title'] }}</div>
             @foreach ($group['items'] as $item)
                 <a href="{{ $item['href'] }}" class="nav-item" @if ($item['active']) aria-current="page" @endif>
-                    <x-icon :name="$item['icon']" />
+                    <x-tool-icon :icon="$item['icon']" />
                     <span class="grow">{{ $item['label'] }}</span>
                     @isset($item['badge'])
                         <x-status-badge :tone="$item['badge']['tone']" :icon="false" :title="$item['badge']['label']">{{ $item['badge']['count'] }}</x-status-badge>
