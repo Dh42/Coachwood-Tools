@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\SignOutDisabledUsers;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,6 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Set by resources/js/preferences.js and read when rendering <html>.
         $middleware->encryptCookies(except: ['theme', 'font_size']);
+
+        $middleware->web(append: [SignOutDisabledUsers::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

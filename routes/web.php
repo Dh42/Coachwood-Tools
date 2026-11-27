@@ -6,18 +6,17 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return Auth::check() ? redirect()->route('dashboard') : view('welcome');
+    return redirect()->route(Auth::check() ? 'dashboard' : 'login');
 })->name('home');
 
 // The launcher arrives with the tools registry (3d).
 Route::view('/dashboard', 'dashboard')
-    ->middleware(['auth', 'verified'])
+    ->middleware('auth')
     ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::put('/preferences', [PreferencesController::class, 'update'])->name('preferences.update');
 });

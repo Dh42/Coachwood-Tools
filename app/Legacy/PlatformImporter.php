@@ -17,7 +17,9 @@ use Spatie\Permission\PermissionRegistrar;
  * This slice (3b) copies:
  * - roles and permissions, matched by name and guard
  * - Google Workspace domains, matched by domain
- * - users, with their IDs preserved because tool tables point at them
+ * - users, with their IDs preserved because tool tables point at them. No
+ *   password hashes or remember tokens, and any already here are cleared:
+ *   sign-in is Google only (decision 2026-11-27)
  * - each imported user's roles and direct permissions, re-mapped to the new
  *   role and permission IDs and replaced on every run, so the old app stays
  *   the source of truth until cutover
@@ -28,7 +30,8 @@ use Spatie\Permission\PermissionRegistrar;
  */
 final class PlatformImporter
 {
-    private const USER_COLUMNS = ['id', 'name', 'email', 'google_id', 'email_verified_at', 'disabled_at', 'password', 'remember_token', 'created_at', 'updated_at'];
+    /** Copied from the old app. Password hashes and remember tokens are not: sign-in is Google only (decision 2026-11-27). */
+    private const USER_COLUMNS = ['id', 'name', 'email', 'google_id', 'email_verified_at', 'disabled_at', 'created_at', 'updated_at'];
 
     private const CHUNK = 1000;
 
@@ -48,12 +51,12 @@ final class PlatformImporter
     /**
      * @return array<string, array{read: int, new: int, updated: int, removed: int}> per table
      *
-     * @throws RuntimeException when an old user's email belongs to a different user here
+     * @throws RuntimeException when an old user clashes with a different person here
      */
     public function run(bool $dryRun = false): array
     {
         $this->report = [];
-        $this->refuseEmailClashes();
+        $this->refuseClashes();
 
         $this->db->beginTransaction();
 
@@ -79,25 +82,36 @@ final class PlatformImporter
     }
 
     /**
-     * Users keep their IDs, so an email that already belongs to a different
-     * ID here would collide. Stop before writing anything and name the IDs.
+     * Users keep their IDs, so stop before writing anything, and name the
+     * IDs, if an old user would overwrite a different person here:
+     * - their email belongs to a different ID here, or
+     * - their ID belongs to someone with a different email and a different
+     *   Google ID (Google sign-in creates users here before cutover, so a
+     *   new user can take an ID the old app hands out later). A changed
+     *   email alone is the same person and is updated.
      */
-    private function refuseEmailClashes(): void
+    private function refuseClashes(): void
     {
         $clashes = [];
 
-        $this->legacy->table('users')->select(['id', 'email'])->orderBy('id')->chunk(self::CHUNK, function ($rows) use (&$clashes) {
-            $existing = $this->db->table('users')->whereIn('email', $rows->pluck('email'))->pluck('id', 'email');
+        $this->legacy->table('users')->select(['id', 'email', 'google_id'])->orderBy('id')->chunk(self::CHUNK, function ($rows) use (&$clashes) {
+            $byEmail = $this->db->table('users')->whereIn('email', $rows->pluck('email'))->pluck('id', 'email');
+            $byId = $this->db->table('users')->whereIn('id', $rows->pluck('id'))->get(['id', 'email', 'google_id'])->keyBy('id');
 
             foreach ($rows as $row) {
-                if (isset($existing[$row->email]) && (int) $existing[$row->email] !== (int) $row->id) {
-                    $clashes[] = "old user {$row->id} matches new user {$existing[$row->email]}";
+                if (isset($byEmail[$row->email]) && (int) $byEmail[$row->email] !== (int) $row->id) {
+                    $clashes[] = "old user {$row->id} matches new user {$byEmail[$row->email]}";
+                }
+
+                $here = $byId[$row->id] ?? null;
+                if ($here && strcasecmp($here->email, $row->email) !== 0 && $here->google_id !== $row->google_id) {
+                    $clashes[] = "old user {$row->id} has the ID of a different user here";
                 }
             }
         });
 
         if ($clashes !== []) {
-            throw new RuntimeException('These old users have an email that a different user already has here, so nothing was imported: '.implode('; ', $clashes).'.');
+            throw new RuntimeException('These old users clash with different users here, so nothing was imported: '.implode('; ', $clashes).'.');
         }
     }
 
@@ -149,9 +163,9 @@ final class PlatformImporter
         $this->legacy->table('users')->select(self::USER_COLUMNS)->orderBy('id')->chunk(self::CHUNK, function ($rows) use (&$ids, &$report) {
             $existing = $this->db->table('users')->whereIn('id', $rows->pluck('id'))->count();
             $this->db->table('users')->upsert(
-                $rows->map(fn ($row) => (array) $row)->all(),
+                $rows->map(fn ($row) => (array) $row + ['password' => null, 'remember_token' => null])->all(),
                 ['id'],
-                array_values(array_diff(self::USER_COLUMNS, ['id'])),
+                [...array_values(array_diff(self::USER_COLUMNS, ['id'])), 'password', 'remember_token'],
             );
 
             $report['read'] += $rows->count();

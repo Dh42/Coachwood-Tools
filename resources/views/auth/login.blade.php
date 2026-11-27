@@ -1,29 +1,18 @@
+{{-- Sign-in is Google only (decision 2026-11-27). --}}
 <x-layouts.guest title="Sign in">
-    <h1 class="section-title">{{ __('Sign in') }}</h1>
+    <div class="flex flex-col gap-2 text-center">
+        <h1 class="section-title">{{ __('Sign in') }}</h1>
+        <p class="muted text-sm">{{ __('Sign in to access your :app dashboard.', ['app' => config('app.name')]) }}</p>
+    </div>
 
-    @if (session('status'))
-        <x-notice tone="good">{{ session('status') }}</x-notice>
+    @if ($errors->any())
+        <x-notice tone="bad">{{ $errors->first() }}</x-notice>
     @endif
 
-    @if (Route::has('google.redirect'))
-        @include('auth.partials.google-button')
-        <div class="divider"><span>{{ __('or') }}</span></div>
-    @endif
+    <a href="{{ route('google.redirect') }}" class="btn btn-primary w-full">
+        <img src="{{ asset('images/google-g.svg') }}" alt="" class="icon">
+        {{ __('Sign in with Google') }}
+    </a>
 
-    <form method="POST" action="{{ route('login') }}" class="form-stack">
-        @csrf
-
-        <x-form-field name="email" type="email" :label="__('Email')" :value="old('email')" required autofocus autocomplete="username" />
-        <x-form-field name="password" type="password" :label="__('Password')" required autocomplete="current-password" />
-
-        <label class="check">
-            <input id="remember_me" type="checkbox" name="remember">
-            <span>{{ __('Remember me') }}</span>
-        </label>
-
-        <div class="form-actions">
-            <a class="text-sm muted" href="{{ route('password.request') }}">{{ __('Forgot your password?') }}</a>
-            <button type="submit" class="btn btn-primary">{{ __('Log in') }}</button>
-        </div>
-    </form>
+    <p class="muted text-xs text-center">{{ __('Use your company Google account.') }}</p>
 </x-layouts.guest>

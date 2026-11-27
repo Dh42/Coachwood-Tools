@@ -52,12 +52,12 @@ Ported in this order, from the platform inventory:
 | Slice | Contents | Old tests |
 | --- | --- | --- |
 | 3a | Page shell on design tokens: layouts, navigation, theme switch with the `theme-changed` event, font size, the 500 page, shared Blade components (spec section 15), a shared chart-theme helper | 1 |
-| 3b | Users, password login, profile, roles `admin` and `user` (seeded by migration this time, not by a manual seeder), Spatie permissions, `Gate::before` for admins | 26 |
+| 3b | Users, Google sign-in (the only way in, decision 2026-11-27), profile, roles `admin` and `user` (seeded by migration this time, not by a manual seeder), Spatie permissions, `Gate::before` for admins, the user part of `legacy:import-platform` | 26 (password tests replaced, Google tests added) |
 | 3c | Activity log (365-day retention as today) | 4 |
 | 3d | Tools registry, the home launcher, Admin > Tools with drag ordering, the self-registration convention | 18 |
 | 3e | Admin > Users, Teams and Activity | 19 |
-| 3f | Google sign-in domains and Google sign-in | 22 |
-| 3g | Gmail transport, Admin > Mail settings, invitations | 11 |
+| 3f | Admin > Google Sign-In (the domain list). Google sign-in itself moved to 3b | 8 |
+| 3g | Gmail transport, Admin > Mail settings, invitations (no password link, decision 2026-11-27) | 11 |
 | 3h | Database scheduler, run history, "Run Now", failure emails, heartbeat, the single cron entry | 10 |
 
 Routes, names and permissions stay as listed in the platform inventory (`/admin/*` behind `role:admin`, `/dashboard`, `/auth/google/*`, no registration route).

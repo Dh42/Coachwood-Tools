@@ -7,44 +7,56 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
-## 2026-11-27: step 3b, users, password sign-in, profile, roles
+## 2026-11-27: step 3b, users, Google sign-in, profile, roles
 
 ### What changed
-Branch `phase-0/users-and-login`. Slice 3b of the platform (plan section 3).
-- **Users:** the old app's columns (`google_id`, nullable `password`, `disabled_at`) added by a new migration, since the users table is already deployed. `User` gains `HasRoles`, `isDisabled()` and `isPending()`. `teams()` waits for 3e.
+Slice 3b of the platform (plan section 3), in two pull requests:
+- `phase-0/users-and-login` (#8, merged and deployed) ported password sign-in.
+- `phase-0/google-only-sign-in` replaces it after Lesley's decision below. Until it deploys, the live site still has the password pages.
+
+**Decision (Lesley):** sign-in is Google only, through the org's internal OAuth client (`docs/decisions.md`, 2026-11-27). Google sign-in moves here from 3f.
+
+- **Users:** the old app's columns (`google_id`, nullable `password`, `disabled_at`) added by a new migration, since the users table is already deployed. `User` gains `HasRoles`, `isDisabled()` and `isPending()`. `teams()` waits for 3e. `password` stays as a nullable column but nothing uses it.
 - **Roles and permissions:** `spatie/laravel-permission` 8.5.1 (the old app is on ^8.3, same config and table migration). The `admin` and `user` roles are created by a migration instead of the old hand-run `RoleSeeder`. `Gate::before` makes admins pass every check, as before.
-- **Password sign-in, reset, confirm, email verification, profile:** the Breeze controllers ported unchanged, routes and names unchanged (`/login`, `/forgot-password`, `/reset-password/{token}`, `/confirm-password`, `/verify-email`, `/profile`, `/password`, `/logout`). No registration route, as before. The Google routes (`auth/google/*`) come in 3f; the sign-in pages show the Google button only once that route exists.
-- **Routes:** `/` shows the sign-in page to visitors and sends signed-in users to `/dashboard`, as in the old app. `/dashboard` needs sign-in and shows the placeholder until the launcher (3d).
-- **Views:** rebuilt on the 3a tokens and the guest and app layouts. New `<x-form-field>` component: linked label, `aria-invalid`, and an error with an icon. The delete-account confirmation uses `<x-modal>` and reopens by itself when the password was wrong. The sidebar's user chip links to the profile and has a log-out button.
-- **Google Workspace domains:** the table, model and `App\Support\GoogleWorkspace` are ported here rather than in 3f, because password reset already refuses company-domain addresses. The old migration's copy from `GOOGLE_ALLOWED_DOMAIN` is dropped; the import copies the domains instead.
-- **Per-user theme (new):** `users.theme` and `users.font_size`. Picking a theme or text size while signed in also saves it to the user (`PUT /preferences`, in the background). A saved choice wins over the cookie; the cookie is the fallback and keeps the sign-in page in the last theme used.
-- **`legacy:import-platform` (new):** copies users (IDs preserved), roles and permissions (by name), user and role grants (re-mapped and replaced each run) and the workspace domains. Re-runnable, `--dry-run` rolls back, prints counts only, and stops before writing if an old email belongs to a different user ID here. Later slices extend it.
-- **Changed from the old app on purpose:**
-  - The profile and password "saved" flashes are now sentences ("Profile saved.", "Password updated."), shown as toasts. The old views matched on codes like `profile-updated`.
-  - The three activity-log lines in `LoginRequest` ("Login failed", "Login blocked - account disabled", "Login succeeded") are left out until the activity log arrives in 3c. The disabled-account check itself is in.
+- **Google sign-in:** `laravel/socialite` 5.33. `GoogleAuthController` ported, with fixes (below). Routes: `GET /login` (the sign-in page, a Google button only), `auth/google/redirect`, `auth/google/callback`, `POST /logout`. `/` sends visitors to `/login` and signed-in users to `/dashboard`. The password, reset, confirmation, verification and registration routes are gone.
+- **Google Workspace domains:** table, model and `App\Support\GoogleWorkspace` ported. The allowed domains come only from this table; `GOOGLE_ALLOWED_DOMAIN` is no longer read and is removed from `docs/server.env.example`.
+- **Profile:** name only. The email is shown read-only, as it comes from Google. Self-delete is removed.
+- **Views:** sign-in and profile rebuilt on the 3a tokens. New `<x-form-field>` component (linked label, `aria-invalid`, error with an icon). The Google "G" is `public/images/google-g.svg`, since its brand colours can't be tokens. The sidebar's user chip links to the profile and has a log-out button.
+- **Per-user theme (new):** `users.theme` and `users.font_size`. Picking one while signed in also saves it to the user (`PUT /preferences`). A saved choice wins over the cookie.
+- **`legacy:import-platform` (new):** copies users (IDs preserved), roles and permissions (by name), user and role grants (re-mapped, replaced each run) and the workspace domains. It copies no password hashes or remember tokens, and clears any already here. Re-runnable; `--dry-run` rolls back; counts only. It stops before writing if an old user would overwrite a different person here (same email on another ID, or same ID with a different email and Google ID).
+
+**Bug fixes** (`docs/found-issues.md`, each test failing on the old code first; the 9 ported Google tests passed on the old code unchanged):
+- **28 (new):** with no domain configured, any Google account got in. Now nobody does.
+- **29 (new):** without the Workspace `hd` claim, the check fell back to the email's domain, which a consumer Google account can also have. `hd` is now required.
+- **8:** an email already linked to a different Google ID is refused instead of signed in to that account; the profile email is read-only; self-delete removed.
+- **5:** `SignOutDisabledUsers` middleware signs a disabled user out on their next request, remember-me cookie or not.
+- **27:** new Google users are marked verified (`forceFill`).
+
+**Left for 3c:** the old activity-log lines in Google sign-in ("Login succeeded", "Login blocked - …", "Google account created"), with the activity log itself.
 
 ### Test status
-135 tests, 525 assertions, passing on SQLite (parallel) and on MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. Migrations roll back and re-apply on MariaDB.
+133 tests, 547 assertions, passing on SQLite (parallel). Pint clean. `npm run build` passes. The password version (#8) also passed on MariaDB 10.11.14 (a throwaway container), and its migrations rolled back and re-applied; this version adds no migrations.
 
-Carried over unchanged (31): `AuthenticationTest` 4, `EmailVerificationTest` 3, `PasswordConfirmationTest` 3, `PasswordResetTest` 7, `PasswordUpdateTest` 2, `ProfileTest` 7, and `GoogleWorkspaceTest` 5 (planned for 3f; it came with the class).
-
-Not carried yet: `AccountDeactivationTest` (3), which asserts activity-log rows. It moves to 3c. Its first case is covered for now by `SignInTest`.
-
-New: `SignInTest` (11), `RolesTest` (4), `PreferencesTest` (7), `ImportPlatformTest` (9), two `ComponentsTest` cases for the form field. `ShellTest` now signs in and uses `/dashboard`.
+- **Carried over unchanged (16):** `GoogleAuthenticationTest` 9, `GoogleWorkspaceTest` 5, and in `AuthenticationTest` the screen and logout cases.
+- **Changed on purpose (Google-only decision):**
+  - `AuthenticationTest`: the two password cases became "no password sign-in" and "no reset, change, confirm, verify or register routes".
+  - `ProfileTest` (6): name-only update, email can't change, no self-delete, and the Google notice for everyone. The Google-only notice case is unchanged.
+- **Dropped:** `PasswordResetTest`, `PasswordUpdateTest`, `PasswordConfirmationTest`, `EmailVerificationTest`.
+- **Moved to 3c:** `AccountDeactivationTest` (asserts activity-log rows). Disabled accounts are covered here by `GoogleAuthenticationTest` and `GoogleSignInSecurityTest`.
+- **New:** `GoogleSignInSecurityTest` 6, `SignInTest` 7, `RolesTest` 4, `PreferencesTest` 7, `ImportPlatformTest` 12, two `ComponentsTest` cases. `ShellTest` now signs in and uses `/dashboard`.
 
 ### Verified
-- **Locally, against the restored copy of `tools_db`** (into a throwaway MariaDB, since removed): the import read 2 roles, 26 permissions, 4 workspace domains, 20 users, 20 role grants, 145 direct permission grants and 0 role permissions. A second run added and removed nothing. Afterwards there were 3 admins and 1 disabled user. 19 of the 20 users have no password, so they need Google sign-in (3f).
-- **Locally, in headless Chrome:** the sign-in page with an error, the signed-out landing page, and the profile page at 1280px and 390px.
-- **Not verified:** the theme save from the sidebar in a real browser (`PUT /preferences` is covered by tests; the `fetch` call is not), and the delete-account dialog opening and closing.
+- **Locally, against the restored copy of `tools_db`** (the #8 importer, into a throwaway MariaDB, since removed): read 2 roles, 26 permissions, 4 workspace domains, 20 users, 20 role grants, 145 direct permission grants, 0 role permissions. A second run added and removed nothing. 3 admins, 1 disabled user.
+- **Locally, in headless Chrome:** the sign-in page and the profile page.
+- **Not verified:** a real Google sign-in (needs the server's OAuth credentials), and the theme save from the sidebar in a real browser.
 
 ### Open questions
-- **Mail before 3g:** "Forgot your password?" sends an email. `docs/server.env.example` has `MAIL_MAILER=gmail_api`, whose transport arrives in 3g, so on the server a reset request would fail until then. Only one imported account has a password, so I left it; setting `MAIL_MAILER=log` until 3g would avoid the error.
-- **New users before cutover:** user IDs are preserved from the old app. Once Google sign-in (3f) can create users here, a new user could take an ID the old app later uses. Decide in 3f whether sign-in here only links imported accounts until cutover.
+- None blocking. `docs/server.env.example` says the redirect URI for this hostname is already on the OAuth client; confirm on the first sign-in.
 
 ### Next step
 - Lesley pushes the branch; it merges itself when CI passes.
-- On the server, after the deploy: confirm `tools_legacy_ro` has `SELECT` only, run `legacy:import-platform --dry-run`, then without `--dry-run`, and sign in with a password account.
-- Then 3c: activity log (365-day retention), with `AccountDeactivationTest` and the login log lines.
+- On the server: check `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` and `INITIAL_ADMIN_EMAIL` in `.env`; confirm `tools_legacy_ro` has `SELECT` only; run `legacy:import-platform --dry-run`, then without it; then sign in with Google.
+- Then 3c: activity log (365-day retention), with `AccountDeactivationTest` and the sign-in log lines.
 
 ## 2026-11-27: history grab complete, merge-on-push verified
 
