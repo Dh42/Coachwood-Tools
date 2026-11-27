@@ -24,8 +24,10 @@ use Spatie\Permission\PermissionRegistrar;
  *   role and permission IDs and replaced on every run, so the old app stays
  *   the source of truth until cutover
  * - the permissions given to each role, re-mapped the same way
+ * - the activity log (3c), matched on `legacy_id`, the old row's ID. This
+ *   app's own rows are never touched. Read in chunks with a pause between
  *
- * Later slices add tools, teams, the activity log and scheduled tasks.
+ * Later slices add tools, teams and scheduled tasks.
  * It reports counts only, never names, emails or other values.
  */
 final class PlatformImporter
@@ -35,12 +37,15 @@ final class PlatformImporter
 
     private const CHUNK = 1000;
 
+    private const ACTIVITY_COLUMNS = ['id', 'log_name', 'description', 'subject_type', 'event', 'subject_id', 'causer_type', 'causer_id', 'properties', 'batch_uuid', 'created_at', 'updated_at'];
+
     /** @var array<string, array{read: int, new: int, updated: int, removed: int}> */
     private array $report = [];
 
     public function __construct(
         private readonly ConnectionInterface $legacy,
         private readonly ConnectionInterface $db,
+        private readonly int $pauseMilliseconds = 250,
     ) {}
 
     public static function make(): self
@@ -68,6 +73,7 @@ final class PlatformImporter
             $this->importGrants('model_has_roles', 'role_id', $roles, $userIds);
             $this->importGrants('model_has_permissions', 'permission_id', $permissions, $userIds);
             $this->importRolePermissions($roles, $permissions);
+            $this->importActivityLog();
         } catch (\Throwable $e) {
             $this->db->rollBack();
 
@@ -224,6 +230,38 @@ final class PlatformImporter
         }
 
         $this->report['role_has_permissions'] = $this->replacedCounts($rows, $before);
+    }
+
+    private function importActivityLog(): void
+    {
+        $report = ['read' => 0, 'new' => 0, 'updated' => 0, 'removed' => 0];
+        $first = true;
+
+        $this->legacy->table('activity_log')->select(self::ACTIVITY_COLUMNS)->orderBy('id')->chunk(self::CHUNK, function ($rows) use (&$report, &$first) {
+            if (! $first) {
+                usleep($this->pauseMilliseconds * 1000);
+            }
+            $first = false;
+
+            $existing = $this->db->table('activity_log')->whereIn('legacy_id', $rows->pluck('id'))->count();
+            $this->db->table('activity_log')->upsert(
+                $rows->map(function ($row) {
+                    $values = (array) $row;
+                    $values['legacy_id'] = $values['id'];
+                    unset($values['id']);
+
+                    return $values;
+                })->all(),
+                ['legacy_id'],
+                array_values(array_diff(self::ACTIVITY_COLUMNS, ['id'])),
+            );
+
+            $report['read'] += $rows->count();
+            $report['updated'] += $existing;
+            $report['new'] += $rows->count() - $existing;
+        });
+
+        $this->report['activity_log'] = $report;
     }
 
     /**

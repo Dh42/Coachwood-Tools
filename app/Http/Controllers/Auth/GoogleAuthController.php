@@ -21,7 +21,9 @@ use Laravel\Socialite\Two\User as SocialiteUser;
  *   signed in to that account (found issue 8)
  * - new users are marked verified; the old code passed a non-fillable
  *   field that was dropped (found issue 27)
- * The activity-log lines come back with the activity log in step 3c.
+ *
+ * Every outcome is written to the `auth` activity log, as in the old app,
+ * plus the two refusals the fixes added.
  */
 class GoogleAuthController extends Controller
 {
@@ -59,10 +61,14 @@ class GoogleAuthController extends Controller
         $domains = GoogleWorkspace::allowedDomains();
 
         if ($domains === []) {
+            activity('auth')->withProperties(['email' => $googleUser->getEmail()])->log('Login blocked - no domain configured');
+
             return $this->refuse('Google sign-in is not set up yet. Contact an administrator.');
         }
 
         if (! $this->isFromAllowedDomain($googleUser)) {
+            activity('auth')->withProperties(['email' => $googleUser->getEmail()])->log('Login blocked - domain not allowed');
+
             return $this->refuse(count($domains) === 1
                 ? 'You must sign in with a '.$domains[0].' account.'
                 : 'You must sign in with a Google account on one of these domains: '.implode(', ', $domains));
@@ -72,6 +78,8 @@ class GoogleAuthController extends Controller
             ?? User::where('email', $googleUser->getEmail())->first();
 
         if ($user && $user->google_id !== null && $user->google_id !== $googleUser->getId()) {
+            activity('auth')->performedOn($user)->withProperties(['email' => $googleUser->getEmail()])->log('Login blocked - linked to a different Google account');
+
             return $this->refuse('This email address is linked to a different Google account. Contact an administrator.');
         }
 
@@ -87,8 +95,12 @@ class GoogleAuthController extends Controller
             $user->assignRole(
                 $this->isInitialAdmin($user) ? 'admin' : 'user'
             );
+
+            activity('auth')->causedBy($user)->log('Google account created');
         } else {
             if ($user->isDisabled()) {
+                activity('auth')->causedBy($user)->log('Login blocked - account disabled');
+
                 return $this->refuse('This account has been disabled. Contact an administrator.');
             }
 
@@ -96,6 +108,11 @@ class GoogleAuthController extends Controller
                 $user->forceFill(['google_id' => $googleUser->getId()])->save();
             }
         }
+
+        activity('auth')
+            ->causedBy($user)
+            ->withProperties(['method' => 'google'])
+            ->log('Login succeeded');
 
         Auth::login($user, remember: true);
 

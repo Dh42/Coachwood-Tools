@@ -20,7 +20,7 @@ class ImportPlatformTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const OLD_TABLES = ['users', 'roles', 'permissions', 'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'google_workspace_domains'];
+    private const OLD_TABLES = ['users', 'roles', 'permissions', 'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'google_workspace_domains', 'activity_log'];
 
     protected function setUp(): void
     {
@@ -58,6 +58,17 @@ class ImportPlatformTest extends TestCase
             $t->string('domain');
             $t->timestamps();
         });
+        $schema->create('activity_log', function (Blueprint $t) {
+            $t->id();
+            $t->string('log_name')->nullable();
+            $t->text('description');
+            $t->nullableMorphs('subject');
+            $t->string('event')->nullable();
+            $t->nullableMorphs('causer');
+            $t->json('properties')->nullable();
+            $t->uuid('batch_uuid')->nullable();
+            $t->timestamps();
+        });
 
         $old = DB::connection('legacy');
         // Old role IDs differ from the new ones, to prove grants are re-mapped.
@@ -86,6 +97,10 @@ class ImportPlatformTest extends TestCase
             ['permission_id' => 30, 'role_id' => 7],
         ]);
         $old->table('google_workspace_domains')->insert([['domain' => 'example.test']]);
+        $old->table('activity_log')->insert([
+            ['id' => 1, 'log_name' => 'auth', 'description' => 'Login succeeded', 'causer_type' => User::class, 'causer_id' => 3, 'properties' => '{"method":"google"}', 'created_at' => '2026-10-01 09:00:00', 'updated_at' => '2026-10-01 09:00:00'],
+            ['id' => 2, 'log_name' => 'admin', 'description' => 'Tool created', 'causer_type' => User::class, 'causer_id' => 3, 'properties' => '[]', 'created_at' => '2026-10-02 09:00:00', 'updated_at' => '2026-10-02 09:00:00'],
+        ]);
     }
 
     public function test_it_copies_users_with_their_ids_roles_and_permissions(): void
@@ -219,6 +234,7 @@ class ImportPlatformTest extends TestCase
                 ['model_has_roles', 3, 3, 0, 0],
                 ['model_has_permissions', 1, 1, 0, 0],
                 ['role_has_permissions', 1, 1, 0, 0],
+                ['activity_log', 2, 2, 0, 0],
             ])
             ->assertSuccessful();
     }
@@ -237,14 +253,36 @@ class ImportPlatformTest extends TestCase
                 ['model_has_roles', 3, 0, 0, 1],
                 ['model_has_permissions', 1, 0, 0, 0],
                 ['role_has_permissions', 1, 0, 0, 0],
+                ['activity_log', 2, 0, 2, 0],
             ])
             ->assertSuccessful();
+    }
+
+    public function test_it_copies_the_activity_log_and_keeps_this_apps_own_entries(): void
+    {
+        // Logged here before the import. On a fresh table it takes ID 1,
+        // which an old row also has.
+        $own = activity('auth')->log('Logged out');
+
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+
+        $rows = DB::table('activity_log')->orderBy('created_at')->get();
+        $this->assertCount(3, $rows);
+        $this->assertSame('Logged out', DB::table('activity_log')->where('id', $own->id)->value('description'));
+        $this->assertNull(DB::table('activity_log')->where('id', $own->id)->value('legacy_id'));
+
+        $copied = DB::table('activity_log')->where('legacy_id', 1)->first();
+        $this->assertSame('Login succeeded', $copied->description);
+        $this->assertSame(3, (int) $copied->causer_id);
+        $this->assertSame('2026-10-01 09:00:00', (string) $copied->created_at);
+        $this->assertSame('google', json_decode($copied->properties, true)['method']);
     }
 
     /** @return array<string, list<array<string, mixed>>> */
     private function newDatabaseRows(): array
     {
-        $tables = ['users' => 'id', 'roles' => 'id', 'permissions' => 'id', 'google_workspace_domains' => 'id', 'model_has_roles' => 'model_id', 'model_has_permissions' => 'model_id', 'role_has_permissions' => 'role_id'];
+        $tables = ['users' => 'id', 'roles' => 'id', 'permissions' => 'id', 'google_workspace_domains' => 'id', 'model_has_roles' => 'model_id', 'model_has_permissions' => 'model_id', 'role_has_permissions' => 'role_id', 'activity_log' => 'id'];
 
         return collect($tables)->map(fn (string $order, string $table) => DB::table($table)->orderBy($order)->get()->map(fn ($row) => (array) $row)->all())->all();
     }

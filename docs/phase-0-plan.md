@@ -53,7 +53,7 @@ Ported in this order, from the platform inventory:
 | --- | --- | --- |
 | 3a | Page shell on design tokens: layouts, navigation, theme switch with the `theme-changed` event, font size, the 500 page, shared Blade components (spec section 15), a shared chart-theme helper | 1 |
 | 3b | Users, Google sign-in (the only way in, decision 2026-11-27), profile, roles `admin` and `user` (seeded by migration this time, not by a manual seeder), Spatie permissions, `Gate::before` for admins, the user part of `legacy:import-platform` | 26 (password tests replaced, Google tests added) |
-| 3c | Activity log (365-day retention as today) | 4 |
+| 3c | Activity log (365-day retention as today), the `auth` log lines, the activity-log import | 3 (`AccountDeactivationTest`). The 4 `ActivityLogTest` cases each need a later slice and move with it: Tools (3d), deactivate and the viewer (3e), invitations (3g) |
 | 3d | Tools registry, the home launcher, Admin > Tools with drag ordering, the self-registration convention | 18 |
 | 3e | Admin > Users, Teams and Activity | 19 |
 | 3f | Admin > Google Sign-In (the domain list). Google sign-in itself moved to 3b | 8 |
@@ -75,7 +75,7 @@ Routes, names and permissions stay as listed in the platform inventory (`/admin/
 | `scheduled_tasks` | Matched by command, except `asp:backfill` (section 2, rule 6) |
 | `teams`, `team_user` | IDs preserved |
 | `google_workspace_domains` | Copied |
-| `activity_log` | IDs preserved |
+| `activity_log` | Matched on `legacy_id`, the old row's ID. Not IDs preserved: this app logs sign-ins from its first deploy, so its own rows would collide. Nothing points at an activity ID |
 
 Not imported:
 - `scheduled_task_runs`. Run history starts fresh, and the old rows stay readable in the old database.

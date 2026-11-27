@@ -54,12 +54,13 @@ Status values:
 | 21 | Amazon tools | `SpApiClient` has no retry or 429 handling, only fixed pauses. The Image Manager's no-JavaScript audit loop has no pause at all | `SpApiClient::request`, `ImageManagerController.php:201-203` | to fix |
 | 22 | VC Image Manager | The image file is stored before Amazon's preview runs, so a rejected upload leaves an orphan file | `ImageManagerController.php:102-152` | to fix |
 | 23 | Walmart US Auditor | The audit takes 10 to 20 minutes and runs at 06:00 UTC, so other tasks due at 06:00 wait behind it | `walmart-us:listing-audit` schedule | to fix |
+| 30 | Platform | The activity log is configured to keep 365 days, but `activitylog:clean` is never scheduled, so nothing is ever deleted. No row is older than 365 days yet (the oldest is from August 2026) | `config/activitylog.php`, scheduled tasks | to fix in 3h, with the scheduler |
 
 ## Documentation only
 
 | # | Area | Issue | Status |
 | --- | --- | --- | --- |
-| 24 | Platform | README says logouts are logged; nothing logs them | to fix |
+| 24 | Platform | README says logouts are logged; nothing logs them | fixed in 3c ("Logged out") |
 | 25 | Platform | README says Google Fonts; the layouts load fonts.bunny.net | to fix |
 | 26 | Platform | README says tools use team membership; no tool does | to fix |
 | 27 | Platform | Google sign-in passes `email_verified_at`, which is not fillable and is dropped. This is harmless only because email verification is not enforced | fixed in 3b (set with `forceFill`) |
