@@ -32,8 +32,10 @@ use Spatie\Permission\PermissionRegistrar;
  * - teams (3e), with their IDs preserved, and each imported team's members,
  *   replaced on every run. A team name already used by a different ID here
  *   stops the import before anything is written
- *
- * Later slices add scheduled tasks.
+ * - scheduled tasks (3h), matched by command: the old app's enabled flag,
+ *   schedule and timezone are copied onto tasks registered here. Tasks not
+ *   ported yet are not created, and `asp:backfill` always stays disabled
+ *   until cutover (plan section 2, rule 6). Run history is not copied
  * It reports counts only, never names, emails or other values.
  */
 final class PlatformImporter
@@ -84,6 +86,7 @@ final class PlatformImporter
             $this->importToolOrder();
             $teamIds = $this->importTeams();
             $this->importTeamMembers($teamIds, $userIds);
+            $this->importScheduledTasks();
         } catch (\Throwable $e) {
             $this->db->rollBack();
 
@@ -332,6 +335,31 @@ final class PlatformImporter
             'updated' => 0,
             'removed' => $before->diffKeys($wanted)->count(),
         ];
+    }
+
+    /** Commands that stay disabled here whatever the old app says (plan section 2, rule 6). */
+    public const DISABLED_UNTIL_CUTOVER = ['asp:backfill'];
+
+    private function importScheduledTasks(): void
+    {
+        $old = $this->legacy->table('scheduled_tasks')->get(['command', 'enabled', 'cron_expression', 'timezone']);
+        $updated = 0;
+
+        foreach ($old as $row) {
+            $values = [
+                'enabled' => (bool) $row->enabled && ! in_array($row->command, self::DISABLED_UNTIL_CUTOVER, true),
+                'cron_expression' => $row->cron_expression,
+                'timezone' => $row->timezone,
+            ];
+            $here = $this->db->table('scheduled_tasks')->where('command', $row->command)->first(['enabled', 'cron_expression', 'timezone']);
+
+            if ($here && ((bool) $here->enabled !== $values['enabled'] || $here->cron_expression !== $values['cron_expression'] || $here->timezone !== $values['timezone'])) {
+                $this->db->table('scheduled_tasks')->where('command', $row->command)->update($values + ['updated_at' => now()]);
+                $updated++;
+            }
+        }
+
+        $this->report['scheduled_tasks'] = ['read' => $old->count(), 'new' => 0, 'updated' => $updated, 'removed' => 0];
     }
 
     private function importToolOrder(): void

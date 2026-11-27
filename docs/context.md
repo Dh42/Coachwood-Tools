@@ -7,6 +7,49 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-29: step 3h, scheduler (platform complete)
+
+### What changed
+Branch `phase-0/scheduler`. Slice 3h, the last of the platform (plan section 3). 3g merged as #14.
+
+- **Database scheduler:** the old `scheduled_tasks` and `scheduled_task_runs` tables, models, `routes/console.php` registration, `schedule:execute-run`, `scheduler:heartbeat`, the failure email, `BackgroundProcessLauncher` and `config/scheduler.php`, all ported. The heartbeat registration migration is the old one.
+- **Admin > Scheduler** (`/admin/schedules`): the old controller and routes. The list shows the schedule, the last run's status and the next run. The edit form, the enable/disable buttons, and Run Now with the run history (status, duration, who started it, output in a collapsible block) are all there. The sidebar links it (new `calendar` and `play` icons).
+- **`App\Scheduling\TaskRegistry`:** the registration convention for tasks, matching `ToolRegistry`. It is insert-only.
+- **Fixes** (`docs/found-issues.md`), each test failing on the old code first:
+  - **17:** a Run Now whose command throws is now closed as failed, with the error in its output, and the admins are emailed. Before, it stayed "running" until it went stale, with no email.
+  - **18:** `scheduled_tasks.command` is unique, so registrations are idempotent, and failure emails skip disabled admins.
+  - **30:** `activitylog:clean --force` runs daily at 03:15 UTC. `--force` is needed because Spatie's command asks for confirmation in production and gives up when nobody answers.
+  - **New:** a failure email that can't be sent (for example, Gmail not connected) is logged instead of breaking the run record. `App\Scheduling\FailureAlert` sends for both the cron path and Run Now.
+- **CI fix (found issue 31):** the first push failed CI (run #20: Pint and both test jobs). The old `routes/console.php` queried `scheduled_tasks` on every Artisan command. CI's `composer install` runs `artisan package:discover` before any database exists, so the install failed. Registration moved to `withSchedule` in `bootstrap/app.php`, which runs only for scheduler commands. `ArtisanWithoutDatabaseTest` runs a real `artisan package:discover` against a missing database; it failed before the fix. Local runs never caught it, because the local `.env` points at a live database. CI's steps were then replayed on a clean copy without `.env`: install, Pint and tests all pass, and `schedule:list` still lists both tasks.
+- **Import:** `legacy:import-platform` copies each old task's enabled flag, schedule and timezone onto tasks registered here, matched by command. `asp:backfill` always stays disabled (plan section 2, rule 6). Tasks not ported yet are not created, and run history is not copied (plan section 3). Today only the heartbeat matches, and its settings are the same, so nothing changes.
+
+### Test status
+270 tests, 960 assertions, passing on SQLite (parallel) and MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. The four new migrations roll back and re-apply on MariaDB.
+
+- **Carried over (16):** `ScheduleManagementTest` 6, `ScheduleExecuteRunCommandTest` 3, `BackgroundProcessLauncherTest` 4, `ScheduledTaskRegistrationTest` 2, `SchedulerHeartbeatRunHistoryTest` 1. In two of them the setup now removes the heartbeat row the migration registers before adding its own, because `command` is unique (fix 18). The assertions are unchanged.
+- **New:**
+  - `SchedulerFixesTest` (6): five failed on the old code first. The sixth, "clean-up keeps 365 days", already passed, since Spatie's command works; it was simply never scheduled.
+  - `SchedulerPagesTest` (7)
+  - one `ImportPlatformTest` case, plus a `scheduled_tasks` row in the two count-table cases
+
+### Verified locally
+- On a throwaway MariaDB: after the real import, `schedule:list` showed both tasks, a real `schedule:run` ran the heartbeat, and its run was recorded as succeeded with its output.
+- In headless Chrome: the scheduler list and the heartbeat's run history.
+
+**Not verified:** Run Now under the server's PHP-FPM. It needs `SCHEDULER_PHP_CLI_BINARY`, which `docs/server.env.example` already sets.
+
+### Platform status
+All eight platform slices (3a to 3h) are done, and `legacy:import-platform` covers every platform table in plan section 3.
+
+### Next step
+- Lesley pushes the branch; it merges itself.
+- **On the server:** check the one cron entry exists (README, Deploying), running every minute as the site owner:
+  ```
+  /opt/plesk/php/8.4/bin/php /var/www/vhosts/tools.coachwoodgroup.com/httpdocs/artisan schedule:run
+  ```
+  Then check `.env` has `SCHEDULER_PHP_CLI_BINARY=/opt/plesk/php/8.4/bin/php`. Within 5 minutes Admin > Scheduler should show a successful heartbeat. Run Now on the heartbeat checks the background launcher.
+- Then step 4: the first tool, BioSteel App Stats (plan section 5.1).
+
 ## 2026-11-29: step 3g, mail and invitations
 
 ### What changed

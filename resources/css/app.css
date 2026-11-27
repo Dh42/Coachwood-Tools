@@ -590,6 +590,23 @@
         border-bottom: 0;
     }
 
+    .run-output {
+        white-space: normal;
+        max-width: 28rem;
+    }
+
+    .run-output pre {
+        margin-top: var(--space-2);
+        padding: var(--space-3);
+        max-height: 20rem;
+        overflow: auto;
+        border-radius: var(--radius-md);
+        background: var(--bg);
+        font: var(--text-xs) / var(--leading-body) var(--font-mono);
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
     .pagination {
         display: flex;
         align-items: center;
