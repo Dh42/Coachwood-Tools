@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Mail\Transport\GmailApiTransport;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,6 +22,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Mail::extend('gmail_api', fn () => new GmailApiTransport);
+
         // Admins are superusers: every permission check (tool access
         // included) short-circuits to true for them, so they see/can use
         // every tool without needing the per-tool checkbox too.

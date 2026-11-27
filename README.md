@@ -127,7 +127,7 @@ Sign-in is **Google only** (decision 2026-11-27): no passwords, no password rese
 - **Profile:** the name can be changed. The email comes from Google. Users can't delete their own account.
 - **Theme and text size:** saved to the user when signed in, so they follow them to other devices. The cookies are the fallback, and keep the sign-in page in the last theme used on that browser.
 
-**Server settings:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` (`https://tools.coachwoodgroup.com/auth/google/callback`, which must be an authorised redirect URI on the OAuth client), and `INITIAL_ADMIN_EMAIL`.
+**Server settings:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` (`https://tools.coachwoodgroup.com/auth/google/callback`), and `INITIAL_ADMIN_EMAIL`. The OAuth client needs two authorised redirect URIs: that one, and `https://tools.coachwoodgroup.com/admin/settings/mail/callback` for Admin > Mail.
 
 ## Activity log
 
@@ -179,10 +179,11 @@ Registering only inserts, so it never overwrites what an admin changed. A new to
 
 All under `/admin`, for the `admin` role only. The sidebar's Admin group links them.
 
-- **Users** (`/admin/users`): role, tool access and teams for each person. Every tool is listed, inactive ones marked; saving changes only `tool.*` permissions, so access to an inactive tool comes back when it is switched on. Deactivate signs someone out and keeps them out; delete is offered only once they are deactivated. You can't deactivate yourself or remove your own admin role. Inviting people arrives with mail (3g); until then a person appears here after their first Google sign-in.
+- **Users** (`/admin/users`): invite people, and set the role, tool access and teams for each person. Only addresses on a company domain can be invited; the invitation is a "Sign in with Google" email, and Resend invite sends it again while they haven't signed in. A failed send leaves the person set up and says why. Every tool is listed, inactive ones marked; saving changes only `tool.*` permissions, so access to an inactive tool comes back when it is switched on. Deactivate signs someone out and keeps them out; delete is offered only once they are deactivated. You can't deactivate yourself or remove your own admin role. Someone who signs in without an invitation appears here with the `user` role and no tools.
 - **Teams** (`/admin/teams`): named groups of people. No tool uses them yet.
 - **Tools** (`/admin/tools`): see Tools registry.
 - **Activity** (`/admin/activity`): the activity log, newest first, 25 a page, filtered by category.
+- **Mail** (`/admin/settings/mail`): connect the Gmail account the app sends from (send-only access), and send yourself a test email. Every email goes through it (`MAIL_MAILER=gmail_api`, `App\Mail\Transport\GmailApiTransport`). If Google rejects the cached access token, it is dropped and the send is tried once more.
 - **Google Sign-In** (`/admin/settings/google-domains`): the Workspace domains allowed to sign in. With none, nobody can sign in, so removing the last one warns that it locks everyone out, admins included. Adding and removing are logged.
 
 ## Imports from the old app

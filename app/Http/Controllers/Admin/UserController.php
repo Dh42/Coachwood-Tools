@@ -6,15 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\Team;
 use App\Models\Tool;
 use App\Models\User;
+use App\Notifications\GoogleSignInInvitationNotification;
+use App\Support\GoogleWorkspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Throwable;
 
 /**
- * Admin > Users, ported from the old app. Inviting people (create, store,
- * resendInvitation) comes with mail in 3g. Fixes (docs/found-issues.md):
+ * Admin > Users, ported from the old app. Inviting is Google only (decision
+ * 2026-11-27): only company-domain addresses can be invited, and every
+ * invitation is the "Sign in with Google" email; the old password link is
+ * gone. Fixes (docs/found-issues.md):
  * - 6: the form lists every tool, inactive ones marked, and saving changes
  *   only `tool.*` permissions, so switching a tool back on restores access
  *   and other permissions are never dropped (Lesley, 2026-11-28)
@@ -27,6 +33,64 @@ class UserController extends Controller
         return view('admin.users.index', [
             'users' => User::query()->with('roles')->orderBy('name')->get(),
         ]);
+    }
+
+    public function create(): View
+    {
+        return view('admin.users.create', [
+            'tools' => Tool::query()->ordered()->get(),
+            'teams' => Team::orderBy('name')->get(),
+            'domains' => GoogleWorkspace::allowedDomains(),
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => [
+                'required', 'email', 'max:255', 'unique:users,email',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (! GoogleWorkspace::isCompanyDomain((string) $value)) {
+                        $fail('Only addresses on a company domain can be invited: they sign in with Google. See Admin > Google Sign-In.');
+                    }
+                },
+            ],
+            'role' => ['required', Rule::in(['admin', 'user'])],
+            'tools' => ['array'],
+            'tools.*' => ['string'],
+            'teams' => ['array'],
+            'teams.*' => ['integer', 'exists:teams,id'],
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => null,
+        ]);
+
+        $user->assignRole($validated['role']);
+
+        $tools = Tool::query()->whereIn('slug', $validated['tools'] ?? [])->get();
+        $user->givePermissionTo($tools->map(fn (Tool $tool) => $tool->permissionName())->all());
+
+        $user->teams()->sync($validated['teams'] ?? []);
+
+        $sendError = $this->sendInvitation($user);
+
+        activity('admin')
+            ->causedBy($request->user())
+            ->performedOn($user)
+            ->log('User invited');
+
+        if ($sendError !== null) {
+            return redirect()->route('admin.users.index')->with(
+                'error',
+                "{$user->email} was created, but the invitation email failed to send: {$sendError}. Fix the issue, then use \"Resend invite\" on their row — the account already exists, so filling in this form again will say the email is taken."
+            );
+        }
+
+        return redirect()->route('admin.users.index')->with('status', 'Invitation sent.');
     }
 
     public function edit(User $user): View
@@ -98,6 +162,28 @@ class UserController extends Controller
         return redirect()->route('admin.users.edit', $user)->with('status', 'User updated.');
     }
 
+    public function resendInvitation(Request $request, User $user): RedirectResponse
+    {
+        abort_if(! $user->isPending(), 403);
+
+        if (! GoogleWorkspace::isCompanyDomain($user->email)) {
+            return redirect()->route('admin.users.index')->with('error', "{$user->email} isn't on a company domain, so they can't sign in with Google. Nothing was sent.");
+        }
+
+        $sendError = $this->sendInvitation($user);
+
+        activity('admin')
+            ->causedBy($request->user())
+            ->performedOn($user)
+            ->log('Invitation resent');
+
+        if ($sendError !== null) {
+            return redirect()->route('admin.users.index')->with('error', "Invitation to {$user->email} failed to send: {$sendError}");
+        }
+
+        return redirect()->route('admin.users.index')->with('status', 'Invitation resent.');
+    }
+
     public function deactivate(Request $request, User $user): RedirectResponse
     {
         abort_if($user->is($request->user()), 403);
@@ -152,5 +238,25 @@ class UserController extends Controller
         $user->delete();
 
         return redirect()->route('admin.users.index')->with('status', 'User deleted.');
+    }
+
+    /**
+     * Returns null on success, or a human-readable message on failure —
+     * never throws. Sending goes through the Gmail API transport, which
+     * throws for anything from "no Gmail account connected yet" to a
+     * transient Google error; letting that propagate turned into a raw 500
+     * with the user already created (ported from the old app).
+     */
+    private function sendInvitation(User $user): ?string
+    {
+        try {
+            $user->notify(new GoogleSignInInvitationNotification);
+
+            return null;
+        } catch (Throwable $e) {
+            Log::error('User invitation email failed to send', ['user_id' => $user->id, 'message' => $e->getMessage()]);
+
+            return $e->getMessage();
+        }
     }
 }
