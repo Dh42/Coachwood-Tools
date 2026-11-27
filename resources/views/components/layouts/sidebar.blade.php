@@ -55,11 +55,17 @@
 
         @if ($user)
             <div class="user-chip">
-                <span class="avatar" aria-hidden="true">{{ \Illuminate\Support\Str::of($user->name)->explode(' ')->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->implode('') }}</span>
-                <span class="brand-text">
-                    <span class="user-name">{{ $user->name }}</span>
-                    <span class="brand-sub truncate">{{ $user->email }}</span>
-                </span>
+                <a href="{{ route('profile.edit') }}" class="user-link" @if (request()->routeIs('profile.edit')) aria-current="page" @endif>
+                    <span class="avatar" aria-hidden="true">{{ \Illuminate\Support\Str::of($user->name)->explode(' ')->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->implode('') }}</span>
+                    <span class="brand-text">
+                        <span class="user-name">{{ $user->name }}</span>
+                        <span class="brand-sub truncate">{{ $user->email }}</span>
+                    </span>
+                </a>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="icon-btn" aria-label="Log out" title="Log out"><x-icon name="logout" /></button>
+                </form>
             </div>
         @endif
     </div>

@@ -2,14 +2,25 @@
 
 namespace Tests\Feature\Platform;
 
+use App\Models\User;
 use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ShellTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->create());
+    }
+
     public function test_the_shell_defaults_to_midnight_and_normal_text(): void
     {
-        $this->get('/')
+        $this->get('/dashboard')
             ->assertOk()
             ->assertSee('data-theme="midnight"', false)
             ->assertSee('data-font-size="normal"', false)
@@ -20,7 +31,7 @@ class ShellTest extends TestCase
     public function test_it_renders_the_theme_and_text_size_from_their_cookies(): void
     {
         $this->withUnencryptedCookies(['theme' => 'daylight', 'font_size' => 'large'])
-            ->get('/')
+            ->get('/dashboard')
             ->assertSee('data-theme="daylight"', false)
             ->assertSee('data-font-size="large"', false)
             ->assertSeeInOrder(['data-theme-option="daylight"', 'aria-pressed="true"'], false);
@@ -29,7 +40,7 @@ class ShellTest extends TestCase
     public function test_unknown_cookie_values_fall_back_to_the_defaults(): void
     {
         $this->withUnencryptedCookies(['theme' => '"><script>', 'font_size' => 'huge'])
-            ->get('/')
+            ->get('/dashboard')
             ->assertSee('data-theme="midnight"', false)
             ->assertSee('data-font-size="normal"', false)
             ->assertDontSee('"><script>', false);
@@ -45,7 +56,7 @@ class ShellTest extends TestCase
 
     public function test_the_sidebar_offers_all_four_themes_and_both_text_sizes(): void
     {
-        $response = $this->get('/');
+        $response = $this->get('/dashboard');
 
         foreach (['midnight', 'graphite', 'daylight', 'evergreen'] as $theme) {
             $response->assertSee('data-theme-option="'.$theme.'"', false);
@@ -55,7 +66,7 @@ class ShellTest extends TestCase
 
     public function test_home_marks_itself_as_the_current_page(): void
     {
-        $this->get('/')->assertSeeInOrder(['class="nav-item"', 'aria-current="page"', 'Home'], false);
+        $this->get('/dashboard')->assertSeeInOrder(['class="nav-item"', 'aria-current="page"', 'Home'], false);
     }
 
     public function test_the_component_gallery_renders_every_component(): void
@@ -73,7 +84,7 @@ class ShellTest extends TestCase
     public function test_session_flashes_become_toasts(): void
     {
         $this->withSession(['status' => 'Saved the sample.'])
-            ->get('/')
+            ->get('/dashboard')
             ->assertSee('<template data-toast="good">Saved the sample.</template>', false);
     }
 }

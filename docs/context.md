@@ -7,6 +7,45 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-11-27: step 3b, users, password sign-in, profile, roles
+
+### What changed
+Branch `phase-0/users-and-login`. Slice 3b of the platform (plan section 3).
+- **Users:** the old app's columns (`google_id`, nullable `password`, `disabled_at`) added by a new migration, since the users table is already deployed. `User` gains `HasRoles`, `isDisabled()` and `isPending()`. `teams()` waits for 3e.
+- **Roles and permissions:** `spatie/laravel-permission` 8.5.1 (the old app is on ^8.3, same config and table migration). The `admin` and `user` roles are created by a migration instead of the old hand-run `RoleSeeder`. `Gate::before` makes admins pass every check, as before.
+- **Password sign-in, reset, confirm, email verification, profile:** the Breeze controllers ported unchanged, routes and names unchanged (`/login`, `/forgot-password`, `/reset-password/{token}`, `/confirm-password`, `/verify-email`, `/profile`, `/password`, `/logout`). No registration route, as before. The Google routes (`auth/google/*`) come in 3f; the sign-in pages show the Google button only once that route exists.
+- **Routes:** `/` shows the sign-in page to visitors and sends signed-in users to `/dashboard`, as in the old app. `/dashboard` needs sign-in and shows the placeholder until the launcher (3d).
+- **Views:** rebuilt on the 3a tokens and the guest and app layouts. New `<x-form-field>` component: linked label, `aria-invalid`, and an error with an icon. The delete-account confirmation uses `<x-modal>` and reopens by itself when the password was wrong. The sidebar's user chip links to the profile and has a log-out button.
+- **Google Workspace domains:** the table, model and `App\Support\GoogleWorkspace` are ported here rather than in 3f, because password reset already refuses company-domain addresses. The old migration's copy from `GOOGLE_ALLOWED_DOMAIN` is dropped; the import copies the domains instead.
+- **Per-user theme (new):** `users.theme` and `users.font_size`. Picking a theme or text size while signed in also saves it to the user (`PUT /preferences`, in the background). A saved choice wins over the cookie; the cookie is the fallback and keeps the sign-in page in the last theme used.
+- **`legacy:import-platform` (new):** copies users (IDs preserved), roles and permissions (by name), user and role grants (re-mapped and replaced each run) and the workspace domains. Re-runnable, `--dry-run` rolls back, prints counts only, and stops before writing if an old email belongs to a different user ID here. Later slices extend it.
+- **Changed from the old app on purpose:**
+  - The profile and password "saved" flashes are now sentences ("Profile saved.", "Password updated."), shown as toasts. The old views matched on codes like `profile-updated`.
+  - The three activity-log lines in `LoginRequest` ("Login failed", "Login blocked - account disabled", "Login succeeded") are left out until the activity log arrives in 3c. The disabled-account check itself is in.
+
+### Test status
+135 tests, 525 assertions, passing on SQLite (parallel) and on MariaDB 10.11.14 (a throwaway container). Pint clean. `npm run build` passes. Migrations roll back and re-apply on MariaDB.
+
+Carried over unchanged (31): `AuthenticationTest` 4, `EmailVerificationTest` 3, `PasswordConfirmationTest` 3, `PasswordResetTest` 7, `PasswordUpdateTest` 2, `ProfileTest` 7, and `GoogleWorkspaceTest` 5 (planned for 3f; it came with the class).
+
+Not carried yet: `AccountDeactivationTest` (3), which asserts activity-log rows. It moves to 3c. Its first case is covered for now by `SignInTest`.
+
+New: `SignInTest` (11), `RolesTest` (4), `PreferencesTest` (7), `ImportPlatformTest` (9), two `ComponentsTest` cases for the form field. `ShellTest` now signs in and uses `/dashboard`.
+
+### Verified
+- **Locally, against the restored copy of `tools_db`** (into a throwaway MariaDB, since removed): the import read 2 roles, 26 permissions, 4 workspace domains, 20 users, 20 role grants, 145 direct permission grants and 0 role permissions. A second run added and removed nothing. Afterwards there were 3 admins and 1 disabled user. 19 of the 20 users have no password, so they need Google sign-in (3f).
+- **Locally, in headless Chrome:** the sign-in page with an error, the signed-out landing page, and the profile page at 1280px and 390px.
+- **Not verified:** the theme save from the sidebar in a real browser (`PUT /preferences` is covered by tests; the `fetch` call is not), and the delete-account dialog opening and closing.
+
+### Open questions
+- **Mail before 3g:** "Forgot your password?" sends an email. `docs/server.env.example` has `MAIL_MAILER=gmail_api`, whose transport arrives in 3g, so on the server a reset request would fail until then. Only one imported account has a password, so I left it; setting `MAIL_MAILER=log` until 3g would avoid the error.
+- **New users before cutover:** user IDs are preserved from the old app. Once Google sign-in (3f) can create users here, a new user could take an ID the old app later uses. Decide in 3f whether sign-in here only links imported accounts until cutover.
+
+### Next step
+- Lesley pushes the branch; it merges itself when CI passes.
+- On the server, after the deploy: confirm `tools_legacy_ro` has `SELECT` only, run `legacy:import-platform --dry-run`, then without `--dry-run`, and sign in with a password account.
+- Then 3c: activity log (365-day retention), with `AccountDeactivationTest` and the login log lines.
+
 ## 2026-11-27: history grab complete, merge-on-push verified
 
 ### Verified live

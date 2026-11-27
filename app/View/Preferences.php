@@ -6,12 +6,16 @@ use Illuminate\Http\Request;
 
 /**
  * The display preferences every layout renders on <html>: the theme and the
- * text size. Both are plain cookies set by resources/js/preferences.js and
- * left unencrypted (bootstrap/app.php), so the first response already has
- * the right theme.
+ * text size.
+ *
+ * A signed-in user's saved choice (users.theme, users.font_size) comes first,
+ * so it follows them to every device. Otherwise the plain cookies set by
+ * resources/js/preferences.js are used. They are left unencrypted
+ * (bootstrap/app.php), so the first response already has the right theme,
+ * and they keep the sign-in page in the last theme used on that browser.
  *
  * The four themes are the Claude Design canvas "Coachwood Tools Redesign"
- * (Themes artboard). Step 3b adds a per-user theme, read before the cookie.
+ * (Themes artboard).
  */
 final class Preferences
 {
@@ -30,15 +34,23 @@ final class Preferences
 
     public static function theme(?Request $request = null): string
     {
-        $value = ($request ?? request())->cookie('theme');
-
-        return is_string($value) && array_key_exists($value, self::THEMES) ? $value : self::DEFAULT_THEME;
+        return self::pick($request ?? request(), 'theme', self::THEMES, self::DEFAULT_THEME);
     }
 
     public static function fontSize(?Request $request = null): string
     {
-        $value = ($request ?? request())->cookie('font_size');
+        return self::pick($request ?? request(), 'font_size', self::FONT_SIZES, self::DEFAULT_FONT_SIZE);
+    }
 
-        return is_string($value) && array_key_exists($value, self::FONT_SIZES) ? $value : self::DEFAULT_FONT_SIZE;
+    /** @param array<string, mixed> $options */
+    private static function pick(Request $request, string $key, array $options, string $default): string
+    {
+        foreach ([$request->user()?->getAttribute($key), $request->cookie($key)] as $value) {
+            if (is_string($value) && array_key_exists($value, $options)) {
+                return $value;
+            }
+        }
+
+        return $default;
     }
 }
