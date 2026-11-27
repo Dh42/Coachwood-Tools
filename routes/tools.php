@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Tools\FeedbackController;
 use App\Http\Controllers\Tools\TeamAppStatsController;
 use App\Http\Controllers\Tools\WalmartUsAuditController;
 use Illuminate\Support\Facades\Route;
@@ -27,3 +28,7 @@ Route::middleware(['auth', 'permission:tool.walmart-us-listing-auditor'])
         Route::get('/', [WalmartUsAuditController::class, 'index'])->name('index');
         Route::get('/{sku}', [WalmartUsAuditController::class, 'show'])->name('show');
     });
+
+Route::middleware(['auth', 'permission:tool.us-product-reviews'])
+    ->get('tools/us-product-reviews', [FeedbackController::class, 'index'])
+    ->name('tools.us-product-reviews.index');

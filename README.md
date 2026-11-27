@@ -239,6 +239,22 @@ Ported from the old app (plan section 5.2). Reads only. Requesting Walmart's LIS
 - **Settings (`.env`):** `WALMART_US_CLIENT_ID`, `WALMART_US_CLIENT_SECRET` and `WALMART_US_ENVIRONMENT` (`config/walmart.php`). The `WALMART_CA_*` block is for Phase 3.
 - **Not used yet:** `walmart_us_audit_params` (copied by the import) and `our_rule_score` are for the later rule engine. The old app's hand-run `WalmartUsAuditParamsSeeder` is not ported.
 
+### US Product Reviews (`/tools/us-product-reviews`, `tool.us-product-reviews`)
+
+Ported from the old app (plan section 5.3). Reads only.
+
+- **Data:** two weekly collectors call Amazon's Customer Feedback API for every ASIN in `products` and `sc_products`, against the US marketplace, using the seller token, one request a second:
+  - `feedback:collect` on Sundays at 01:00 UTC: topics, subtopics and snippets
+  - `feedback:collect-trends` on Sundays at 02:00 UTC: the 6-month trend per topic
+
+  Raw responses are kept compressed (`raw_response_gz`).
+- **Page:** a summary of every ASIN (catalog, pull status, topic counts, top topics; sortable, filterable, CSV, Copy ASINs) and a detail page per ASIN (`?asin=`). Each topic is labelled positive or negative, with occurrence and star impact against the category, the 6-month trend, snippets and subtopics. The page has a Tutorial tour.
+- **Settings:** the SP-API settings from step 2 (`SP_API_SELLER_REFRESH_TOKEN` and the client ID and secret).
+
+### Shared product lists
+
+`products` (Vendor Central, .ca) and `sc_products` (Seller Central, US) are read-only copies of the old app's tables until Phase 1 rebuilds the catalog (plan section 5, "Shared tables"). `legacy:import-products` mirrors them, IDs included, and runs daily at 00:30 UTC as the "Products Sync From Old App" task.
+
 ## Imports from the old app
 
 ### `legacy:import-platform`
@@ -299,6 +315,19 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:walmart-us
 | `walmart_us_audit_params` | Matched on `effective_from`; `changed_by` kept when that user exists here |
 
 The comparison covers catalog scores, SKU audits and their issues for a period (by default the 60 days to yesterday), and the catalog items as they are now. It matches rows on their natural keys. Rows from this app's own nightly runs are counted as "only here", not as a difference.
+
+### `legacy:import-products`, `legacy:import-us-product-reviews` and `compare:us-product-reviews`
+
+```bash
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-products
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-us-product-reviews --dry-run
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-us-product-reviews
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:us-product-reviews
+```
+
+Both imports mirror the old tables exactly, IDs included (`App\Legacy\TableMirror`): rows are upserted on `id`, and rows the old app doesn't have are deleted, children first. For the six `feedback_*` tables, this means rows this app's own collectors wrote during shadow running are replaced by the old app's, so the two apps' IDs never collide (plan section 6, "The old app wins").
+
+The comparison runs the summary page's query against both databases and hashes every row of the six tables, raw responses included. Run it right after the import: once this app's collector has run again, it differs until the next import.
 
 ## One-time commands
 
