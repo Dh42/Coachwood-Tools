@@ -30,7 +30,7 @@ class SafetyDefaultsTest extends TestCase
 
     public function test_the_home_page_names_the_app_and_nothing_else(): void
     {
-        $this->get('/')
+        $this->followingRedirects()->get('/')
             ->assertOk()
             ->assertSee('Coachwood Tools')
             ->assertDontSee('Laravel');

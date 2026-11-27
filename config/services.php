@@ -38,6 +38,14 @@ return [
     // Amazon Selling Partner API. Ported from the old app's config/services.php
     // unchanged, plus vendor_codes (decision D9: Z3091 BioSteel and GQ8J9
     // Canadian Protein, both under the same Vendor Central authorization).
+    // Google sign-in, the only way in (decision 2026-11-27). Which accounts
+    // may sign in is the google_workspace_domains table, not an env value.
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+
     'sp_api' => [
         'base_url' => env('SP_API_BASE_URL', 'https://sellingpartnerapi-na.amazon.com'),
         'client_id' => env('SP_API_CLIENT_ID'),

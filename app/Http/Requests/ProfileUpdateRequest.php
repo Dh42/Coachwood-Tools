@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests;
 
-use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
+/**
+ * Ported from the old app, name only. The email comes from Google and can't
+ * be changed here: the old app let a user change it to a colleague's
+ * address that Google sign-in would then link (found issue 8).
+ */
 class ProfileUpdateRequest extends FormRequest
 {
     /**
@@ -18,14 +21,6 @@ class ProfileUpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'string',
-                'lowercase',
-                'email',
-                'max:255',
-                Rule::unique(User::class)->ignore($this->user()->id),
-            ],
         ];
     }
 }

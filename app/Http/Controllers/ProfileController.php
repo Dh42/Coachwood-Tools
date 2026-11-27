@@ -5,10 +5,15 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 
+/**
+ * Ported from the old app without `destroy`: users no longer delete their
+ * own account. Self-delete skipped the deactivate-first rule admins follow
+ * (found issue 8), and with Google-only sign-in the next sign-in would just
+ * create the account again. Admins manage accounts in Admin > Users (3e).
+ */
 class ProfileController extends Controller
 {
     /**
@@ -26,37 +31,8 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
-
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
-        }
-
-        $request->user()->save();
+        $request->user()->fill($request->validated())->save();
 
         return Redirect::route('profile.edit')->with('status', 'Profile saved.');
-    }
-
-    /**
-     * Delete the user's account.
-     */
-    public function destroy(Request $request): RedirectResponse
-    {
-        if ($request->user()->password) {
-            $request->validateWithBag('userDeletion', [
-                'password' => ['required', 'current_password'],
-            ]);
-        }
-
-        $user = $request->user();
-
-        Auth::logout();
-
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return Redirect::to('/');
     }
 }

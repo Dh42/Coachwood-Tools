@@ -484,6 +484,11 @@
         font-weight: var(--weight-medium);
     }
 
+    .input[readonly] {
+        background: var(--surface-2);
+        color: var(--muted);
+    }
+
     .input[aria-invalid='true'] {
         border-color: var(--bad);
     }
@@ -502,20 +507,6 @@
         color: var(--bad);
     }
 
-    .check {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-        font-size: var(--text-sm);
-        cursor: pointer;
-    }
-
-    .check input {
-        width: var(--icon-md);
-        height: var(--icon-md);
-        accent-color: var(--accent);
-    }
-
     .form-stack {
         display: flex;
         flex-direction: column;
@@ -532,31 +523,6 @@
 
     .form-actions > a:first-child {
         margin-right: auto;
-    }
-
-    .link-btn {
-        border: 0;
-        padding: 0;
-        background: none;
-        color: var(--accent);
-        font: inherit;
-        cursor: pointer;
-        text-decoration: underline;
-    }
-
-    .divider {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        font-size: var(--text-xs);
-        color: var(--faint);
-    }
-
-    .divider::before,
-    .divider::after {
-        content: '';
-        flex: 1;
-        border-top: 1px solid var(--border);
     }
 
     /* ---- Surfaces ---- */

@@ -118,11 +118,16 @@ Migrations run on every deploy. A migration must never call an outside API or ru
 
 ## Signing in
 
-- **Accounts:** there is no registration page. Accounts come from the old app through `legacy:import-platform` (below), and later from Google sign-in (step 3f) and invitations (3g).
-- **Passwords:** password sign-in, "Forgot your password?" and the profile page work now. Addresses on a company Google Workspace domain are refused a reset link: those accounts sign in with Google.
+Sign-in is **Google only** (decision 2026-11-27): no passwords, no password reset, no registration.
+
+- **Who can get in:** the Google OAuth client is internal to the org. On top of that, the app only accepts Workspace accounts (Google's `hd` claim) on a domain in `google_workspace_domains`. With no domain in that table, nobody can sign in. `legacy:import-platform` copies the domains; Admin > Google Sign-In (3f) manages them.
+- **First sign-in:** an imported account is linked to the Google account with the same email. Someone with no account gets one with the `user` role, or `admin` if their email is `INITIAL_ADMIN_EMAIL`. An email already linked to a different Google account is refused.
 - **Roles:** `admin` and `user` are created by a migration. Admins pass every permission check (`Gate::before` in `AppServiceProvider`). Everyone else needs the permission itself, for example `tool.<slug>`.
-- **Disabled accounts** (`users.disabled_at`) are signed straight back out.
+- **Disabled accounts** (`users.disabled_at`) are refused at sign-in and signed out on their next request, remember-me cookie or not.
+- **Profile:** the name can be changed. The email comes from Google. Users can't delete their own account.
 - **Theme and text size:** saved to the user when signed in, so they follow them to other devices. The cookies are the fallback, and keep the sign-in page in the last theme used on that browser.
+
+**Server settings:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` (`https://tools.coachwoodgroup.com/auth/google/callback`, which must be an authorised redirect URI on the OAuth client), and `INITIAL_ADMIN_EMAIL`.
 
 ## Imports from the old app
 
@@ -137,12 +142,12 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-platf
 
 | Table | How |
 | --- | --- |
-| `users` | IDs preserved. Name, email, Google ID, password hash, verified and disabled dates are overwritten from the old app; the theme and text size chosen here are kept |
+| `users` | IDs preserved. Name, email, Google ID, verified and disabled dates are overwritten from the old app; the theme and text size chosen here are kept. Password hashes and remember tokens are not copied, and any here are cleared |
 | `roles`, `permissions` | Matched by name and guard |
 | User roles and direct permissions, role permissions | Replaced with the old app's for each imported user, re-mapped to the new IDs |
 | `google_workspace_domains` | Matched by domain |
 
-If an old user's email already belongs to a different user here, it stops before writing anything and names the IDs. Later platform slices add tools, teams, the activity log and scheduled tasks to this command.
+It stops before writing anything, and names the IDs, if an old user would overwrite a different person here: their email belongs to another ID, or their ID belongs to someone with a different email and Google ID (a person who signed in here first). Later platform slices add tools, teams, the activity log and scheduled tasks to this command.
 
 ## One-time commands
 

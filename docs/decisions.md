@@ -2,6 +2,17 @@
 
 Each entry records a decision that replaces or adds to a default in `docs/build-spec.md`. Where this file and the spec differ, this file wins. Newest first.
 
+## 2026-11-27: Google-only sign-in
+
+Decided by Lesley during step 3b.
+
+| Topic | Decision | Replaces |
+| --- | --- | --- |
+| Sign-in | Google only, through the company's internal OAuth client, which only lets people in the org sign in. No password sign-in, password reset, password change, password confirmation, email verification or registration. Google sign-in moves from 3f into 3b | The old app's password sign-in (Breeze), plan section 3 slices 3b and 3f |
+| Old passwords | Not imported. Any password hash already in the new database is cleared on the next import | Plan section 3, "Platform import" (`users`) |
+| Profile | Name only. The email comes from Google and is read-only. Users can't delete their own account; admins manage accounts (3e) | The old profile page |
+| Invitations (3g) | Create the account ahead of the person's first Google sign-in, with no password-set link | The old invitation email with a password link |
+
 ## 2026-11-25: Phase 0 plan approved
 
 Decided by Lesley, answering section 8 of `docs/phase-0-plan.md`.

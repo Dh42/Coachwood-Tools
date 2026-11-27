@@ -69,6 +69,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Initial admin
+    |--------------------------------------------------------------------------
+    |
+    | The first Google sign-in with this email gets the admin role instead of
+    | the user role. Ported from the old app.
+    |
+    */
+
+    'initial_admin_email' => env('INITIAL_ADMIN_EMAIL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

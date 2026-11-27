@@ -1,15 +1,22 @@
 <x-layouts.app title="Profile" breadcrumb="Account">
     <div class="flex flex-col gap-4">
-        @include('profile.partials.update-profile-information-form')
+        <x-card :title="__('Profile Information')">
+            <form method="post" action="{{ route('profile.update') }}" class="form-stack">
+                @csrf
+                @method('patch')
 
-        @if ($user->password)
-            @include('profile.partials.update-password-form')
-        @else
-            <x-card :title="__('Update Password')">
-                <x-notice tone="info">{{ __('Your password is managed by your Google account.') }}</x-notice>
-            </x-card>
-        @endif
+                <x-form-field name="name" :label="__('Name')" :value="old('name', $user->name)" required autocomplete="name" />
+                <x-form-field name="email" type="email" :label="__('Email')" :value="$user->email" readonly
+                              :hint="__('Your email comes from your Google account.')" />
 
-        @include('profile.partials.delete-user-form')
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">{{ __('Save') }}</button>
+                </div>
+            </form>
+        </x-card>
+
+        <x-card :title="__('Sign-in')">
+            <x-notice tone="info">{{ __('Your password is managed by your Google account.') }}</x-notice>
+        </x-card>
     </div>
 </x-layouts.app>

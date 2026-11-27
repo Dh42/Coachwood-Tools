@@ -23,12 +23,14 @@ Status values:
 
 | # | Area | Issue | Where | Status |
 | --- | --- | --- | --- | --- |
-| 5 | Platform | Deactivating a user deletes their sessions, but Google sign-in always sets a remember-me cookie and nothing checks `disabled_at`, so the user may get straight back in | `UserController.php:145-147`, `GoogleAuthController.php:98` | to fix |
+| 5 | Platform | Deactivating a user deletes their sessions, but Google sign-in always sets a remember-me cookie and nothing checks `disabled_at`, so the user may get straight back in | `UserController.php:145-147`, `GoogleAuthController.php:98` | fixed in 3b: `SignOutDisabledUsers` middleware signs them out on their next request |
 | 6 | Platform | Saving a user while a tool is inactive revokes that tool's grant, and removes any non-tool permissions. README says reactivating a tool restores access exactly | `UserController@update` | needs input |
 | 7 | Platform | An admin can deactivate or demote their own account (only delete is guarded) | `UserController@deactivate`, `@update` | to fix |
-| 8 | Platform | Any user can change their own email, including to an unclaimed company address that Google sign-in then links to. Self-delete skips the deactivate-first rule and is not logged | `ProfileUpdateRequest`, `GoogleAuthController.php:61-63` | to fix |
+| 8 | Platform | Any user can change their own email, including to an unclaimed company address that Google sign-in then links to. Self-delete skips the deactivate-first rule and is not logged | `ProfileUpdateRequest`, `GoogleAuthController.php:61-63` | fixed in 3b: email is read-only, self-delete removed, and Google sign-in refuses an email already linked to a different Google ID |
+| 28 | Platform | Google sign-in lets any Google account in, personal Gmail included, when no Workspace domain is configured | `GoogleAuthController::isFromAllowedDomain` | fixed in 3b: no domain means nobody gets in |
+| 29 | Platform | Without Google's Workspace `hd` claim, the domain check falls back to the email's domain. A consumer Google account can be registered on a company address | `GoogleAuthController::isFromAllowedDomain` | fixed in 3b: the `hd` claim is required |
 | 9 | Listings Editors | The audit column config is described as admin-only, but any tool user can change it | `VendorListingController@auditConfig`, `SellerListingController@auditConfig` | to fix |
-| 10 | Platform | Invitation links expire after 60 minutes (password broker default). This is not documented anywhere | `config/auth.php` | to fix |
+| 10 | Platform | Invitation links expire after 60 minutes (password broker default). This is not documented anywhere | `config/auth.php` | goes away in 3g: invitations no longer send a password link (decision 2026-11-27) |
 
 ## Data correctness
 
@@ -60,7 +62,7 @@ Status values:
 | 24 | Platform | README says logouts are logged; nothing logs them | to fix |
 | 25 | Platform | README says Google Fonts; the layouts load fonts.bunny.net | to fix |
 | 26 | Platform | README says tools use team membership; no tool does | to fix |
-| 27 | Platform | Google sign-in passes `email_verified_at`, which is not fillable and is dropped. This is harmless only because email verification is not enforced | to fix |
+| 27 | Platform | Google sign-in passes `email_verified_at`, which is not fillable and is dropped. This is harmless only because email verification is not enforced | fixed in 3b (set with `forceFill`) |
 
 ## Applied without asking
 

@@ -94,12 +94,9 @@ class ImportPlatformTest extends TestCase
 
         $this->assertSame([3, 5, 9], User::query()->orderBy('id')->pluck('id')->all());
 
-        $admin = User::find(3);
-        $this->assertTrue($admin->hasRole('admin'));
-        $this->assertTrue(Hash::check('old-password', $admin->password));
+        $this->assertTrue(User::find(3)->hasRole('admin'));
 
         $google = User::find(5);
-        $this->assertNull($google->password);
         $this->assertSame('google-5', $google->google_id);
         $this->assertTrue($google->hasRole('user'));
         $this->assertTrue($google->can('tool.example-two'));
@@ -109,13 +106,50 @@ class ImportPlatformTest extends TestCase
         $this->assertSame(['example.test'], GoogleWorkspaceDomain::query()->pluck('domain')->all());
     }
 
-    public function test_old_users_can_sign_in_with_their_old_password_after_the_import(): void
+    public function test_it_copies_no_password_hashes_or_remember_tokens(): void
     {
+        // Sign-in is Google only (decision 2026-11-27), so old passwords
+        // would only be secrets kept for nothing.
+        DB::connection('legacy')->table('users')->where('id', 3)->update(['remember_token' => 'old-token']);
+
         $this->artisan('legacy:import-platform')->assertSuccessful();
 
-        $this->post('/login', ['email' => 'admin@example.test', 'password' => 'old-password'])
-            ->assertRedirect(route('dashboard', absolute: false));
-        $this->assertAuthenticatedAs(User::find(3));
+        $this->assertSame(0, User::query()->whereNotNull('password')->orWhereNotNull('remember_token')->count());
+    }
+
+    public function test_a_password_hash_already_here_is_cleared_on_the_next_run(): void
+    {
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+        User::find(3)->forceFill(['password' => Hash::make('something')])->save();
+
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+
+        $this->assertNull(User::find(3)->password);
+    }
+
+    public function test_a_different_person_already_holding_an_old_users_id_stops_the_import(): void
+    {
+        // Google sign-in creates users here before cutover, so a new user can
+        // take an ID the old app hands out later. Same ID, different email
+        // and different Google ID: a different person, never overwrite.
+        User::factory()->create(['id' => 9, 'email' => 'new-here@example.test', 'google_id' => 'google-new']);
+
+        $this->artisan('legacy:import-platform')
+            ->expectsOutputToContain('old user 9 has the ID of a different user here')
+            ->assertFailed();
+
+        $this->assertSame('new-here@example.test', User::find(9)->email);
+        $this->assertSame(1, User::count());
+    }
+
+    public function test_an_email_change_in_the_old_app_still_updates_the_same_person(): void
+    {
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+        DB::connection('legacy')->table('users')->where('id', 5)->update(['email' => 'renamed@example.test']);
+
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+
+        $this->assertSame('renamed@example.test', User::find(5)->email);
     }
 
     public function test_running_it_again_changes_nothing_and_adds_no_rows(): void
