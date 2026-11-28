@@ -2,6 +2,13 @@
 
 Each entry records a decision that replaces or adds to a default in `docs/build-spec.md`. Where this file and the spec differ, this file wins. Newest first.
 
+## 2026-12-07: Combined Shipping Refund leaves this app
+
+| Topic | Decision | Replaces |
+| --- | --- | --- |
+| Combined Shipping Refund | Not ported. It belongs in the customer service app and will be rebuilt there. Phase 0 step 13 is dropped, and its found issues (2 and 3) go with it. The shared code this app already has stays: the Shopify GraphQL client and brand settings (ASP Tracker) and the Klaviyo client (Team Sponsorship) | Plan step 13 and section 5.10; build spec section 4 (`/tools/combined-shipping`) |
+| Until then | Staff keep using it in the old app. The old app can't be switched off, or `tools.biosteel.com` moved here, while it's the only place the tool runs; see the plan's section 6 | |
+
 ## 2026-12-06: Listings Editors
 
 Decided by Lesley while porting the VC and SC Listings Editors.

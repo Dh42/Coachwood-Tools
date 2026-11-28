@@ -7,6 +7,24 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-07: Combined Shipping Refund dropped from Phase 0
+
+### What changed
+- **Decision (Lesley):** Combined Shipping Refund is not ported. It was out of place in this app, and moves to the customer service app instead. Recorded in `decisions.md`.
+- **Plan:** step 13 is dropped and section 5.10 is marked "not ported"; section 6 notes the cutover dependency (below).
+- **Found issues 2 and 3** move with the tool.
+- **README and config comments:** they no longer say Combined Shipping comes later.
+- **No code removed.** The shared pieces this app already has are used by ported tools: `App\Services\CombinedShipping\ShopifyGraphQlClient` and the brand settings in `config/combined_shipping.php` (ASP Tracker), and `KlaviyoClient` (Team Sponsorship). Two unused Klaviyo event names stay in `config/klaviyo.php`, commented.
+
+### Test status
+No code changed: 859 pass.
+
+### Open questions
+- **Cutover:** the plan's cutover puts the whole old app into maintenance mode and points `tools.biosteel.com` at this app. While Combined Shipping Refund runs only in the old app, either the customer service app takes it over first, or the old app stays up for that one tool on another hostname.
+
+### Next step
+Step 14, the cutover rehearsal: final sync, comparisons, gate.
+
 ## 2026-12-07: step 12, VC Image Manager
 
 ### What changed
@@ -51,7 +69,7 @@ Step 12 of the plan, section 5.9. Uncommitted in the working copy; Lesley commit
 None. Found issue 21's `SpApiClient` part is still open, as noted.
 
 ### Next step
-Lesley deploys and tests the page, then runs `legacy:import-image-manager` and `compare:image-manager` on the server. Then step 13, Combined Shipping Refund.
+Lesley deploys and tests the page, then runs `legacy:import-image-manager` and `compare:image-manager` on the server. Then step 13, Combined Shipping Refund (since dropped; see the entry above).
 
 ## 2026-12-06: step 11, VC and SC Listings Editors
 

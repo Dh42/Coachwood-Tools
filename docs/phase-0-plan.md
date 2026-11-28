@@ -22,7 +22,7 @@ Sources: `docs/build-spec.md`, `docs/decisions.md`, the old code at `~/PhpstormP
 | 10 | Team Sponsorship and Team Sponsorship Stats | Shopify draft orders, invoice emails, Klaviyo | 58 (55 ported, 4 of them changed on purpose; the 3 registration-migration tests replaced; see the step 10 context entry) |
 | 11 | VC and SC Listings Editors | Amazon listing submissions | 101 (all ported; 1 assertion changed for the new markup, 2 setups turn writes on; see the step 11 context entry) |
 | 12 | VC Image Manager | Amazon image submissions | 24 (all ported; 1 setup turns writes on; see the step 12 context entry) |
-| 13 | Combined Shipping Refund | Shopify refunds (money), Klaviyo | 95 |
+| 13 | ~~Combined Shipping Refund~~ Dropped (decision 2026-12-07): it moves to the customer service app | – | – |
 | 14 | Cutover rehearsal: final sync, comparisons, gate | No | – |
 
 About 694 of the 1,296 old tests carry over. The rest cover tools rebuilt in later phases, or the Zendesk sidebar, which is dropped. Counts come from reading the test files and are approximate until the tests run in the new repo.
@@ -205,6 +205,8 @@ R = reads, W = writes. "Sync at cutover" names what the final sync must bring ac
 
 ### 5.10 Combined Shipping Refund
 
+**Not ported (decision 2026-12-07).** It moves to the customer service app. Kept below as the record of what the old tool does.
+
 | Item | Detail |
 | --- | --- |
 | Route and permission | `/tools/combined-shipping` (index, preview, show, confirm-refund). `tool.combined-shipping` |
@@ -223,7 +225,8 @@ R = reads, W = writes. "Sync at cutover" names what the final sync must bring ac
 - **Before cutover.** The new app runs its scheduled pulls beside the old app, as agreed. No Shopify webhooks point at it (decision 2026-11-25), so stock-out snapshots come only from the 15-minute sweep, and ASP orders arrive through the daily catch-up. That is enough to prove the collectors work.
 - **Sync.** `legacy:sync` re-runs every tool's import, in the step order. It is safe to run any number of times.
   - **The old app wins.** For tables both apps write (App Stats snapshots, ASP, Lost Sales history, CDQ, reviews, Walmart), the final sync replaces the new app's shadow rows with the old app's rows, in batched deletes. Shadow data exists only to prove the collectors work. This avoids duplicate chart points from two collectors.
-  - **More than the two Team tools need syncing.** Combined Shipping refunds, listing edits and image edits made in the old app also need it, which is why every tool has a "sync at cutover" row.
+  - **More than the two Team tools need syncing.** Listing edits and image edits made in the old app also need it, which is why every tool has a "sync at cutover" row.
+  - **Combined Shipping Refund stays in the old app** until the customer service app has it (decision 2026-12-07). Step 1 below puts the whole old app into maintenance mode, and step 4 moves its hostname, so either the customer service app takes the tool over first, or the old app keeps running for that one tool on another hostname. To decide before cutover.
 - **Cutover, proposed as one evening.**
   1. Put the old app in maintenance mode, and disable its scheduled tasks.
   2. Run `legacy:sync`.

@@ -3,8 +3,9 @@
 /*
  * Ported from the old app's config/combined_shipping.php: only the shared
  * part the ASP Tracker uses (plan section 5.6, "Shared code"). The rest of
- * the file (thresholds, keep rule, group limits) comes with Combined
- * Shipping itself.
+ * the file (thresholds, keep rule, group limits) belonged to the Combined
+ * Shipping Refund tool, which moves to the customer service app instead of
+ * this one (decision 2026-12-07).
  */
 return [
     // One Shopify store per brand: its domain and Admin API token, used by

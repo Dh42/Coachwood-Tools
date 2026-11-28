@@ -15,8 +15,8 @@ Status values:
 | # | Tool | Issue | Where | Status |
 | --- | --- | --- | --- | --- |
 | 1 | Team Sponsorship | No server-side "already sent" check. Only the button is greyed out, so a repeat POST creates another real Shopify draft order and invoice email | `TeamSponsorshipController@storeOrder` | fixed in step 10: a request for a team that already has an order (same email and team, either case) is refused before any Shopify call, with the earlier order's ID and date. Test: `TeamSponsorshipFixesTest` |
-| 2 | Combined Shipping | `confirm-refund` has no guard against re-posting a finished batch. It relies on the refund service's own local and live checks, which do exist | `CombinedShippingController@confirmRefund` | to fix |
-| 3 | Combined Shipping | Canadian Protein thresholds are marked as an unconfirmed TODO in config | `config/combined_shipping.php` | needs input |
+| 2 | Combined Shipping | `confirm-refund` has no guard against re-posting a finished batch. It relies on the refund service's own local and live checks, which do exist | `CombinedShippingController@confirmRefund` | moved with the tool to the customer service app (decision 2026-12-07); not fixed here |
+| 3 | Combined Shipping | Canadian Protein thresholds are marked as an unconfirmed TODO in config | `config/combined_shipping.php` | moved with the tool to the customer service app (decision 2026-12-07); not fixed here |
 | 4 | Team Sponsorship | Shopify REST API version is pinned to 2024-01, likely past Shopify's support window | `ShopifyClient.php` | keep for now (Lesley, step 10): stays at 2024-01 until Lesley asks to move it. Shopify answers a request for an unsupported version with its oldest supported one (**from docs**), so the old app is already running on a newer version in practice. A newer pin can't be checked from development: the stock read can be checked on the server's page, but the draft order and invoice only once writes are on. When it does move: change it, check the stock card, then send one real sponsorship and check it in Shopify |
 
 ## Access and accounts

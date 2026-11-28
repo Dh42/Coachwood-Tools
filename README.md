@@ -240,7 +240,7 @@ Ported from the old app (plan section 5.7). Two tools with separate permissions,
 - **Settings:**
   - `SHOPIFY_STORE` and `SHOPIFY_ACCESS_TOKEN` (`services.shopify`, the REST Admin API at version 2024-01, kept for now; found issue 4)
   - `BIOSTEEL_TEAMS_*`
-  - `KLAVIYO_BS_PRIVATE_API_KEY` (`config/klaviyo.php`, shared with Combined Shipping later)
+  - `KLAVIYO_BS_PRIVATE_API_KEY` (`config/klaviyo.php`)
   - the product and variant IDs in `config/team_sponsorship.php`
 
 ### Walmart US Listing Auditor (`/tools/walmart-us-listing-auditor`, `tool.walmart-us-listing-auditor`)
@@ -273,7 +273,7 @@ Ported from the old app (plan section 5.6): one tool per store, Canadian Protein
 - **Writes, run by hand and only after cutover:** the backfill's `bulkOperationRunQuery` and `asp:register-webhooks`' `webhookSubscriptionCreate`. Both go through `ExternalWrites` and refuse while `TOOLS_EXTERNAL_WRITES` is off.
 - **Webhooks:** `POST /webhooks/shopify/asp/cp` and `/bs`, each checked against its store's secret (`SHOPIFY_CP_WEBHOOK_SECRET`, `SHOPIFY_BS_WEBHOOK_SECRET`).
 - **Page:** filters (dates, day/week/month, product with search, variant, order type, channel, free items) and date presets; six headline figures; a key; ASP, product ASP and list ASP over time with units underneath (click a point, bar or period row for the discounts behind it); by-variant, by-product and by-period tables with CSV; how each number is worked out; data status; a Tutorial tour. The script is `resources/js/tools/asp-tracker.js`.
-- **Settings:** `SHOPIFY_CP_STORE`, `SHOPIFY_CP_ACCESS_TOKEN`, `SHOPIFY_STORE`, `SHOPIFY_ACCESS_TOKEN` (the brands in `config/combined_shipping.php`, shared with Combined Shipping later), and the two webhook secrets.
+- **Settings:** `SHOPIFY_CP_STORE`, `SHOPIFY_CP_ACCESS_TOKEN`, `SHOPIFY_STORE`, `SHOPIFY_ACCESS_TOKEN` (the brands in `config/combined_shipping.php`), and the two webhook secrets.
 
 ### VC Listings Editor (`/tools/vc-listings`, `tool.vc-listings`) and SC Listings Editor (`/tools/sc-listings`, `tool.sc-listings`)
 

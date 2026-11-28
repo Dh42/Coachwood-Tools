@@ -38,8 +38,9 @@ return [
     // claimed_sponsorship_package are live-confirmed (2026-09-22/23,
     // BioSteel; the first two also on Canadian Protein).
     'events' => [
-        // Combined Shipping Refund tool — brand: whichever store the batch
-        // was for.
+        // The old app's Combined Shipping Refund tool, which moves to the
+        // customer service app (decision 2026-12-07); unused here. Brand:
+        // whichever store the batch was for.
         'single_order_refunded' => 'Shipping Refunded - Single Order',
         'multiple_orders_refunded' => 'Shipping Refunded - Multiple Orders',
 
