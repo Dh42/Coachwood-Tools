@@ -11,8 +11,9 @@ use App\Support\ExternalWrites;
 use App\Support\ExternalWritesDisabled;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -26,19 +27,22 @@ class CutoverTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** A made-up group whose import and comparison are test commands. */
+    /** @var list<string> the steps run as their own processes, in order */
+    private array $ran = [];
+
+    /**
+     * A made-up group. Its steps run as processes (RunsStepsInOwnProcess),
+     * which are faked: each records itself, and the comparison matches or not.
+     */
     private function fakeGroup(bool $compareMatches = true): void
     {
-        $GLOBALS['cutover_test_calls'] = [];
-        Artisan::command('legacy:import-made-up {--dry-run}', function () {
-            $GLOBALS['cutover_test_calls'][] = 'import'.($this->option('dry-run') ? ' --dry-run' : '');
+        $this->ran = [];
+        Process::fake(function (PendingProcess $process) use ($compareMatches) {
+            preg_match("/'artisan' '([^']+)'(?: '(--dry-run)')?/", (string) $process->command, $m);
+            $step = ($m[1] ?? '?').(isset($m[2]) ? ' --dry-run' : '');
+            $this->ran[] = $step;
 
-            return 0;
-        });
-        Artisan::command('compare:made-up', function () use ($compareMatches) {
-            $GLOBALS['cutover_test_calls'][] = 'compare';
-
-            return $compareMatches ? 0 : 1;
+            return Process::result(exitCode: $step === 'compare:made-up' && ! $compareMatches ? 1 : 0);
         });
         config([
             'cutover.shared_imports' => [],
@@ -150,7 +154,7 @@ class CutoverTest extends TestCase
             ->expectsOutputToContain('Made-up next step.')
             ->assertSuccessful();
 
-        $this->assertSame(['import', 'compare'], $GLOBALS['cutover_test_calls']);
+        $this->assertSame(['legacy:import-made-up', 'compare:made-up'], $this->ran);
         $this->assertTrue(Cutover::hasMoved('made-up'));
     }
 
@@ -161,7 +165,7 @@ class CutoverTest extends TestCase
         $this->artisan('cutover:move', ['group' => 'made-up'])
             ->expectsConfirmation('Are its tools and tasks switched off in the old app?', 'no')
             ->assertFailed();
-        $this->assertSame([], $GLOBALS['cutover_test_calls']);
+        $this->assertSame([], $this->ran);
 
         $this->artisan('cutover:move', ['group' => 'made-up', '--force' => true])
             ->expectsOutputToContain('found differences. Nothing was moved')
@@ -186,16 +190,16 @@ class CutoverTest extends TestCase
         $this->fakeGroup();
 
         $this->artisan('legacy:sync')->expectsOutputToContain('Sync complete.')->assertSuccessful();
-        $this->assertSame(['import', 'compare'], $GLOBALS['cutover_test_calls']);
+        $this->assertSame(['legacy:import-made-up', 'compare:made-up'], $this->ran);
 
-        $GLOBALS['cutover_test_calls'] = [];
+        $this->ran = [];
         $this->artisan('legacy:sync', ['--dry-run' => true])->assertSuccessful();
-        $this->assertSame(['import --dry-run'], $GLOBALS['cutover_test_calls']);
+        $this->assertSame(['legacy:import-made-up --dry-run'], $this->ran);
 
-        $GLOBALS['cutover_test_calls'] = [];
+        $this->ran = [];
         Cutover::markMoved('made-up');
         $this->artisan('legacy:sync')->expectsOutputToContain('skipped')->assertSuccessful();
-        $this->assertSame([], $GLOBALS['cutover_test_calls']);
+        $this->assertSame([], $this->ran);
     }
 
     public function test_sync_fails_when_a_comparison_differs(): void

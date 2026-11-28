@@ -2,8 +2,6 @@
 
 namespace App\Legacy;
 
-use Illuminate\Support\Facades\DB;
-
 /**
  * `compare:cdq-report`: hashes every row of the eight mirrored `cdq_*`
  * tables in both databases, in ID order (the import keeps the old IDs).
@@ -19,24 +17,21 @@ final class CdqComparison
     public function run(): array
     {
         $out = [];
+        $md5Large = function (array $row): array {
+            foreach (CdqImporter::LARGE_COLUMNS as $column) {
+                if (array_key_exists($column, $row) && $row[$column] !== null) {
+                    $row[$column] = md5($row[$column]);
+                }
+            }
+
+            return $row;
+        };
+
         foreach (CdqImporter::TABLES as $table => $columns) {
-            $rows = fn (?string $connection) => DB::connection($connection)->table($table)->orderBy('id')->get($columns)
-                ->map(function ($row) {
-                    $row = (array) $row;
-                    foreach (CdqImporter::LARGE_COLUMNS as $column) {
-                        if (array_key_exists($column, $row) && $row[$column] !== null) {
-                            $row[$column] = md5($row[$column]);
-                        }
-                    }
-
-                    return RowHasher::normalise($row);
-                })->all();
-
-            $old = $rows('legacy');
-            $new = $rows(null);
-            $oldHash = RowHasher::hash($old);
-            $newHash = RowHasher::hash($new);
-            $out[] = ['section' => $table, 'old_rows' => count($old), 'new_rows' => count($new), 'old_hash' => $oldHash, 'new_hash' => $newHash, 'match' => $oldHash === $newHash];
+            // A chunk at a time: cdq_defect alone has about 85,000 rows.
+            [$oldRows, $oldHash] = RowHasher::hashTable('legacy', $table, $columns, $md5Large);
+            [$newRows, $newHash] = RowHasher::hashTable(null, $table, $columns, $md5Large);
+            $out[] = ['section' => $table, 'old_rows' => $oldRows, 'new_rows' => $newRows, 'old_hash' => $oldHash, 'new_hash' => $newHash, 'match' => $oldHash === $newHash];
         }
 
         return $out;

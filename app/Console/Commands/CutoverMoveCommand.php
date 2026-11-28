@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\RunsStepsInOwnProcess;
 use App\Cutover\Cutover;
 use App\Models\ScheduledTask;
 use Illuminate\Console\Command;
@@ -16,6 +17,8 @@ use Illuminate\Console\Command;
  */
 class CutoverMoveCommand extends Command
 {
+    use RunsStepsInOwnProcess;
+
     protected $signature = 'cutover:move {group : A group from cutover:status}
         {--force : Skip the confirmation (for scripts)}';
 
@@ -49,7 +52,7 @@ class CutoverMoveCommand extends Command
         foreach ($group['imports'] as $command) {
             $this->newLine();
             $this->info("== {$command}");
-            if ($this->call($command) !== self::SUCCESS) {
+            if ($this->runStep($command) !== self::SUCCESS) {
                 $this->error("{$command} failed. Nothing was moved.");
 
                 return self::FAILURE;
@@ -58,7 +61,7 @@ class CutoverMoveCommand extends Command
         foreach ($group['compares'] as $command) {
             $this->newLine();
             $this->info("== {$command}");
-            if ($this->call($command) !== self::SUCCESS) {
+            if ($this->runStep($command) !== self::SUCCESS) {
                 $this->error("{$command} found differences. Nothing was moved; check them (docs/context.md), then run this again.");
 
                 return self::FAILURE;

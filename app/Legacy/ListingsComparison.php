@@ -15,8 +15,6 @@ use Illuminate\Support\Facades\DB;
  */
 final class ListingsComparison
 {
-    private const CHUNK = 2000;
-
     /**
      * @return list<array{section: string, old_rows: int, new_rows: int, old_hash: string, new_hash: string, match: bool}>
      */
@@ -45,29 +43,10 @@ final class ListingsComparison
     /** @param  list<string>  $columns  the key first */
     private function tableSection(string $table, array $columns): array
     {
-        [$oldRows, $oldHash] = $this->hashTable('legacy', $table, $columns);
-        [$newRows, $newHash] = $this->hashTable(null, $table, $columns);
+        [$oldRows, $oldHash] = RowHasher::hashTable('legacy', $table, $columns);
+        [$newRows, $newHash] = RowHasher::hashTable(null, $table, $columns);
 
         return $this->result($table, $oldRows, $newRows, $oldHash, $newHash);
-    }
-
-    /**
-     * @param  list<string>  $columns
-     * @return array{int, string}
-     */
-    private function hashTable(?string $connection, string $table, array $columns): array
-    {
-        $context = hash_init('sha256');
-        $count = 0;
-        DB::connection($connection)->table($table)->select($columns)->orderBy($columns[0])
-            ->chunk(self::CHUNK, function ($rows) use ($context, &$count) {
-                foreach ($rows as $row) {
-                    hash_update($context, json_encode(RowHasher::normalise((array) $row))."\n");
-                    $count++;
-                }
-            });
-
-        return [$count, substr(hash_final($context), 0, 12)];
     }
 
     private function result(string $name, int $oldRows, int $newRows, string $oldHash, string $newHash): array

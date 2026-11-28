@@ -2,6 +2,8 @@
 
 namespace App\Legacy;
 
+use Illuminate\Support\Facades\DB;
+
 /**
  * Shared by the compare:* commands: renders rows the same way on MariaDB
  * and SQLite, then hashes them. Only counts and 12-character hashes are
@@ -49,6 +51,32 @@ final class RowHasher
         usort($rows, fn (array $a, array $b) => strcmp(json_encode(array_values($a)), json_encode(array_values($b))));
 
         return $rows;
+    }
+
+    /**
+     * Every row of a table, a chunk at a time, so a large table is never held
+     * in memory whole. Rows in the order of the first column (the ID or key),
+     * each normalised after $transform. Not the same value as hash() for the
+     * same rows; compare it only with another hashTable().
+     *
+     * @param  list<string>  $columns  the ordering column first
+     * @param  ?callable(array<string, mixed>): array<string, mixed>  $transform
+     * @return array{int, string} row count and hash
+     */
+    public static function hashTable(?string $connection, string $table, array $columns, ?callable $transform = null, int $chunk = 2000): array
+    {
+        $context = hash_init('sha256');
+        $count = 0;
+        DB::connection($connection)->table($table)->select($columns)->orderBy($columns[0])
+            ->chunk($chunk, function ($rows) use ($context, $transform, &$count) {
+                foreach ($rows as $row) {
+                    $row = (array) $row;
+                    hash_update($context, json_encode(self::normalise($transform ? $transform($row) : $row))."\n");
+                    $count++;
+                }
+            });
+
+        return [$count, substr(hash_final($context), 0, 12)];
     }
 
     /** @param  array<mixed>  $rows */

@@ -7,6 +7,33 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-08: `legacy:sync` on the server ran out of memory
+
+### What happened (verified live, from Lesley's output)
+- **On the server:** `cutover:status` listed all eight groups in the old app. `legacy:sync --dry-run` completed (363.4 s).
+- **The real `legacy:sync` failed:** it imported and matched App Stats, Walmart, US Product Reviews and Lost Sales, then stopped in `compare:cdq-report` with "Allowed memory size of 268435456 bytes exhausted" in `RowHasher`. Nothing after it ran: the ASP, Team Sponsorship and listings imports and comparisons.
+- **The imports themselves are unaffected:** each runs in its own transaction, and the CDQ import had completed.
+
+### Cause (found issue 35)
+- Every step ran in the one `legacy:sync` process, and memory built up across the steps.
+- `CdqComparison` loaded each table whole on both sides, then encoded it all at once. Found issue 34 (step 11) made this worse: text is no longer cut to 19 characters.
+- Reproduced locally: the same groups in one process, at the server's 256 MB, fail at the same place. On its own, the CDQ comparison passed at 256 MB.
+- The local PHP CLI has no memory limit, which is how this got through. Long commands are now tested at 256 MB.
+
+### What changed
+- **Separate processes:** `legacy:sync` and `cutover:move` run each import and comparison as its own PHP process (`App\Console\Concerns\RunsStepsInOwnProcess`, Laravel's `Process`), streaming its output, with the environment passed through.
+- **Chunked hashing:** `RowHasher::hashTable()` hashes a table a chunk at a time. `CdqComparison` and `ListingsComparison` use it.
+- **Tests:** `CutoverTest` now fakes the processes and checks the steps run, and in order.
+
+### Test status
+870 pass on SQLite and on MariaDB 10.11, and on a clean-copy CI replay. Pint is clean.
+
+### Verified
+A full `legacy:sync` from the local copy into a fresh scratch MariaDB, with every process (children included) capped at 256 MB: every import and comparison matched, in 770.5 s.
+
+### Next step
+Lesley deploys and runs `legacy:sync` on the server again (no dry run needed), for the gate's run time. Then the gate sign-off.
+
 ## 2026-12-07: per-group cutover, and step 14 (cutover rehearsal)
 
 ### What changed

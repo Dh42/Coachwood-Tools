@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\RunsStepsInOwnProcess;
 use App\Cutover\Cutover;
 use Illuminate\Console\Command;
 
@@ -10,9 +11,12 @@ use Illuminate\Console\Command;
  * (plan section 6). Groups that have moved are skipped: this app owns their
  * data. Safe to run any number of times. Prints counts and hashes only, and
  * the time each step took, for the Phase 0 gate (plan section 7, item 5).
+ * Each step runs as its own process (RunsStepsInOwnProcess).
  */
 class LegacySyncCommand extends Command
 {
+    use RunsStepsInOwnProcess;
+
     protected $signature = 'legacy:sync
         {--dry-run : Run every import as a dry run, and skip the comparisons}
         {--group=* : Only these groups (the shared imports always run)}';
@@ -38,7 +42,7 @@ class LegacySyncCommand extends Command
             $this->newLine();
             $this->info("== {$command}");
             $t = microtime(true);
-            $code = $this->call($command, $dryRun && str_starts_with($command, 'legacy:') ? ['--dry-run' => true] : []);
+            $code = $this->runStep($command, $dryRun && str_starts_with($command, 'legacy:') ? ['--dry-run'] : []);
             $ok = $code === self::SUCCESS;
             $failed = $failed || ! $ok;
             $summary[] = [$label, $command, $ok ? 'ok' : (str_starts_with($command, 'compare:') ? 'DIFFERS' : 'FAILED'), number_format(microtime(true) - $t, 1)];
