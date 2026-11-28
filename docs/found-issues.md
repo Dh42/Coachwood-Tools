@@ -14,10 +14,10 @@ Status values:
 
 | # | Tool | Issue | Where | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Team Sponsorship | No server-side "already sent" check. Only the button is greyed out, so a repeat POST creates another real Shopify draft order and invoice email | `TeamSponsorshipController@storeOrder` | to fix |
+| 1 | Team Sponsorship | No server-side "already sent" check. Only the button is greyed out, so a repeat POST creates another real Shopify draft order and invoice email | `TeamSponsorshipController@storeOrder` | fixed in step 10: a request for a team that already has an order (same email and team, either case) is refused before any Shopify call, with the earlier order's ID and date. Test: `TeamSponsorshipFixesTest` |
 | 2 | Combined Shipping | `confirm-refund` has no guard against re-posting a finished batch. It relies on the refund service's own local and live checks, which do exist | `CombinedShippingController@confirmRefund` | to fix |
 | 3 | Combined Shipping | Canadian Protein thresholds are marked as an unconfirmed TODO in config | `config/combined_shipping.php` | needs input |
-| 4 | Team Sponsorship | Shopify REST API version is pinned to 2024-01, likely past Shopify's support window | `ShopifyClient.php` | to fix |
+| 4 | Team Sponsorship | Shopify REST API version is pinned to 2024-01, likely past Shopify's support window | `ShopifyClient.php` | needs input (step 10): kept at 2024-01. Shopify answers a request for an unsupported version with its oldest supported one (**from docs**), so the old app is already running on a newer version in practice. A newer pin can't be checked from development: the stock read can be checked on the server's page, but the draft order and invoice only once writes are on. Proposal: change it at cutover, check the stock card, then send one real sponsorship and check it in Shopify |
 
 ## Access and accounts
 
@@ -42,6 +42,7 @@ Status values:
 | 13 | CDQ | If the Anthropic key is missing or a call fails, the listing is scored as having no conflicts and gets full credit | `CdqConsistencyService` | Fixed in step 8 (decision 2026-12-03): an unchecked listing keeps cdq:score's provisional 10, but `cdq_score.consist_checked_at` records a real check, the page and detail show "Not checked", and `cdq:consistency` fails (alert) when Anthropic gives no usable answer. Confirmed live in the old app: no CONSIST defects and an empty `cdq_llm_cache`, so all 1,441 scored listings got the 10 points unchecked. Tests: `CdqFixesTest` |
 | 14 | CDQ | The CSV export does not quote ASIN or SKU | `CdqReportController` | Fixed in step 8: every field goes through `fputcsv`. Test: `CdqFixesTest` |
 | 15 | SC Listings | Sync only upserts, so SKUs that left the report keep their old status | `SellerListingController` sync | to fix |
+| 33 | Team Sponsorship | The Stats export writes team names and emails as typed by coaches, so a team name starting with `=`, `+`, `-` or `@` opens in a spreadsheet as a formula (CSV injection) | `TeamSponsorshipController@exportStats` | fixed in step 10: such cells get a leading apostrophe and open as text (`App\Support\CsvCell`). Test: `TeamSponsorshipFixesTest` |
 | 16 | Listings Editors | An edit-history row is written after the real PATCH whatever the result, so rejected submissions appear in the history | `VendorListingController.php:212-219`, `SellerListingController.php:159-166` | to fix |
 
 ## Reliability
@@ -55,6 +56,7 @@ Status values:
 | 21 | Amazon tools | `SpApiClient` has no retry or 429 handling, only fixed pauses. The Image Manager's no-JavaScript audit loop has no pause at all | `SpApiClient::request`, `ImageManagerController.php:201-203` | to fix |
 | 22 | VC Image Manager | The image file is stored before Amazon's preview runs, so a rejected upload leaves an orphan file | `ImageManagerController.php:102-152` | to fix |
 | 23 | Walmart US Auditor | The audit takes 10 to 20 minutes and runs at 06:00 UTC, so other tasks due at 06:00 wait behind it | `walmart-us:listing-audit` schedule | fixed in step 5, in the scheduler: tasks due in the same minute run shortest first, by their last finished run |
+| 32 | Team Sponsorship | A timeout reaching Shopify fails the whole page (500), and a timeout reaching the BioSteel Teams API fails the search: only API errors (`RuntimeException`) are caught, not `ConnectionException`. A blank Shopify store makes a malformed URL, which fails the page too | `TeamSponsorshipController@index`, `@search`, `ShopifyClient` | fixed in step 10: the stock card shows "Couldn't reach Shopify" or "isn't configured", and the search shows "Couldn't reach the BioSteel Teams API". Test: `TeamSponsorshipFixesTest` |
 | 30 | Platform | The activity log is configured to keep 365 days, but `activitylog:clean` is never scheduled, so nothing is ever deleted. No row is older than 365 days yet (the oldest is from August 2026) | `config/activitylog.php`, scheduled tasks | fixed in 3h: `activitylog:clean --force` is registered daily at 03:15 UTC |
 
 ## Documentation only

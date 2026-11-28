@@ -809,6 +809,11 @@
         padding: 0;
     }
 
+    /* Short labels beside their values, inside a narrow card (Team Sponsorship results). */
+    .scope-list.scope-list-compact {
+        grid-template-columns: max-content 1fr;
+    }
+
     /* A table row that opens something (ASP Tracker periods). */
     .table .row-link {
         cursor: pointer;
@@ -1223,6 +1228,11 @@
     }
 
     .modal {
+        /* Tailwind's reset zeroes margins, which pinned every dialog to the
+           top-left corner; the browser centres an open dialog with auto. */
+        margin: auto;
+        max-height: calc(100dvh - var(--space-8));
+        overflow-y: auto;
         border: 1px solid var(--border);
         border-radius: var(--radius-xl);
         background: var(--surface);

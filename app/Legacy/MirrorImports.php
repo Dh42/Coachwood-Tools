@@ -35,6 +35,19 @@ final class MirrorImports
     ];
 
     /**
+     * Team Sponsorship and its Stats page (plan section 5.7): IDs preserved,
+     * since order items point at their order by ID. The old app wins: rows
+     * only here are removed. While writes are off this app creates no
+     * orders of its own, so nothing of its own is lost; the activity rows
+     * its nightly refresh writes are replaced by the old app's.
+     */
+    public const TEAM_SPONSORSHIP = [
+        'orders' => ['id', 'email', 'team_name', 'shopify_order_id', 'sent_at', 'created_at', 'updated_at'],
+        'order_items' => ['id', 'order_id', 'product_label', 'quantity', 'created_at', 'updated_at'],
+        'team_sponsorship_activity' => ['id', 'email', 'team_name', 'team_id', 'user_id', 'emails_count', 'events_count', 'games_count', 'practices_count', 'refreshed_at', 'last_error'],
+    ];
+
+    /**
      * @param  array<string, list<string>>  $tables
      * @return array<string, array{read: int, new: int, updated: int, removed: int}>
      */

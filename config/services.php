@@ -46,12 +46,20 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
-    // BioSteel Teams app API (App Stats; Team Sponsorship in step 10).
-    // Read-only here: login, counts, leaderboards.
+    // BioSteel Teams app API (App Stats, Team Sponsorship). Read-only:
+    // login, teams, counts, leaderboards.
     'biosteel_teams' => [
         'base_url' => env('BIOSTEEL_TEAMS_BASE_URL', 'https://api.biosteelteams.com'),
         'username' => env('BIOSTEEL_TEAMS_USERNAME'),
         'password' => env('BIOSTEEL_TEAMS_PASSWORD'),
+    ],
+
+    // BioSteel's Shopify store, REST Admin API (Team Sponsorship: stock
+    // reads, and the draft order and invoice email, which go through
+    // App\Support\ExternalWrites).
+    'shopify' => [
+        'store' => env('SHOPIFY_STORE'),
+        'access_token' => env('SHOPIFY_ACCESS_TOKEN'),
     ],
 
     // BioSteel App Stats' Google Ad Manager + GA4 integrations

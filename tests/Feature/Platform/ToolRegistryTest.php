@@ -38,11 +38,12 @@ class ToolRegistryTest extends TestCase
 
     public function test_a_new_registration_goes_to_the_end_of_the_order(): void
     {
-        $this->tool(['name' => 'First', 'slug' => 'first', 'sort_order' => 7]);
+        // Above every tool the migrations register, so it is the last one.
+        $this->tool(['name' => 'First', 'slug' => 'first', 'sort_order' => 100]);
 
         ToolRegistry::register(['slug' => 'second', 'name' => 'Second', 'url' => '/tools/second']);
 
-        $this->assertSame(8, Tool::where('slug', 'second')->value('sort_order'));
+        $this->assertSame(101, Tool::where('slug', 'second')->value('sort_order'));
     }
 
     public function test_registering_again_never_overwrites_what_an_admin_changed(): void

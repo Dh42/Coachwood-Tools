@@ -7,6 +7,60 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-05: step 10, Team Sponsorship and Sponsorship Stats
+
+### What changed
+Step 10 of the plan, section 5.7. Uncommitted in the working copy; Lesley commits.
+
+- **Ported unchanged:**
+  - `TeamSponsorshipController`
+  - `App\Services\Shopify\ShopifyClient`, `App\Services\Klaviyo\KlaviyoClient`
+  - `KlaviyoSponsorshipNotifier`, `TeamActivityClient`, the `TeamSponsorshipActivity` model
+  - `team-sponsorship:refresh-activity` and `team-sponsorship:backfill-order-items`
+  - `config/team_sponsorship.php` and `config/klaviyo.php`
+  
+  Pint only reformatted the controller. One comment in `TeamActivityClient`, and one in the ported test, named a real coach's email; both now describe it instead. `Order`, `OrderItem` and their tables came across in step 4.
+- **Table:** `team_sponsorship_activity` in the old app's final shape (`emails_count`, not `registered_players`).
+- **Registration:** both tools under "BioSteel Teams", with the names and descriptions the old admins last set. Icons are `trophy` and `pie`. The nightly refresh is at 01:00 UTC; its description now says "email reach", since the old one still said "registered-player count".
+- **`services.shopify` was missing from `config/services.php`.** The old app had it; this one didn't. The ported tests set it themselves, so only the browser check showed it: with `SHOPIFY_STORE` set, the page still said "not configured". Added, with a test that the settings come from the environment.
+- **Write guard (plan section 2, rule 3):**
+  - `ShopifyClient::createSponsorshipDraftOrder` refuses (`ExternalWritesDisabled`) before any Shopify call.
+  - `KlaviyoClient::sendEvent` returns its usual "not sent" result, since it never throws.
+  - While writes are off, the page shows a notice. Create Order answers with what the order would have contained (`ShopifyClient::sponsorshipLineItems`, which makes no call) and saves nothing.
+- **Fixes, each with a test that fails on the old code (`TeamSponsorshipFixesTest`):**
+  - found issue 1: a team that already has an order is refused on the server
+  - 32: a Shopify or BioSteel Teams timeout, or a blank Shopify store, shows a message instead of a 500
+  - 33: the Stats CSV keeps formula-like team names and emails as text (`App\Support\CsvCell`)
+- **Found issue 4 (Shopify API version 2024-01) needs Lesley's answer.** It is kept for now; the proposal is in `found-issues.md`.
+- **Pages rebuilt on the new design:** search, stock, team cards, the order dialog, the Stats tiles, three charts on the shared theme, the products table, recent sponsorships with paging and export. Both pages have Tutorial tours and the Stats page shows when activity was last refreshed.
+- **Dialogs were pinned to the top-left corner app-wide.** Tailwind's reset zeroes the margin the browser uses to centre an open `<dialog>`; this affected the ASP drill-down too. Fixed in the shared `.modal` style, which now also scrolls when taller than the screen.
+- **Import:** `legacy:import-team-sponsorship` mirrors `orders`, `order_items` and `team_sponsorship_activity` with their IDs (`TeamSponsorshipImporter`). Rows here holding a second unique key the old app has under another ID are cleared first. `compare:team-sponsorship` hashes the three tables and the Stats page's figures.
+
+### Test status
+- 706 pass on SQLite and on MariaDB 10.11, and on a clean-copy CI replay. Pint is clean.
+- **Carried over:** 55 of the 58 old tests.
+  - **Not ported:** the 3 in `TeamSponsorshipToolRegistrationTest`. They tested one-off migrations that repaired a tool row created by hand under the wrong slug, which can't arise when tools are registered and imported by slug. `TeamSponsorshipRegistrationTest` replaces them.
+  - **Changed on purpose:** `TeamSponsorshipTest`, `ShopifyClientTest` and `KlaviyoSponsorshipNotifierTest` turn writes on in setup, with a comment, as in step 9.
+  - **Also changed:** `test_index_shows_hockey_puck_stock_in_the_inventory_snapshot`. Setup's catch-all fake answers before the test's own, so its stock of 25 was never served. The old page passed only because "25" appeared elsewhere in its HTML. It now checks that the puck variant is fetched.
+- **New:** 14 tests in `TeamSponsorshipFixesTest`, `TeamSponsorshipRegistrationTest` and `ImportTeamSponsorshipTest`.
+- **One of this app's own tests changed:** `ToolRegistryTest` assumed the registered tools' order stayed below 7.
+
+### Verified
+- **Real data (verified on the local copy of the old database):** the import copied 866 orders, 2,745 items and 866 activity rows in about 1 s. A second run changed nothing, and `compare:team-sponsorship` matched all four sections.
+- **Pages (verified in headless Chrome with real input):** both pages ran on the imported data, with a stand-in BioSteel Teams API that returned made-up teams.
+  - **Search:** typing an email and clicking Get Teams shows the teams, with sport, events, the possible-fraud flag and the Sent state.
+  - **Order dialog:** it opens with the bottle count and the hockey note. Submitting with writes off lists 18 bottles, 18 sample packs, 3 towels and 18 pucks.
+  - **Errors:** a bad email shows the field error, and an unreachable Shopify shows the stock message.
+  - **Tours and charts:** both Tutorial tours start, every step has its element, and the three charts show tooltips on hover.
+  - **Layout:** no sideways scroll at 390 px, and no script errors.
+- **Assumed:** the live draft order and invoice keep working unchanged. That code is ported unchanged, but it can't be exercised until writes are on.
+
+### Open questions
+- Found issue 4: when to move off Shopify API version 2024-01 (proposal: at cutover).
+
+### Next step
+Lesley deploys and runs the import and compare on the server. Then step 11, the VC and SC Listings Editors.
+
 ## 2026-12-04: ASP comparison on the server, and a per-order breakdown
 
 ### What changed

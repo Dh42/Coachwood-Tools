@@ -5,6 +5,7 @@ use App\Http\Controllers\Tools\CdqReportController;
 use App\Http\Controllers\Tools\FeedbackController;
 use App\Http\Controllers\Tools\StockoutController;
 use App\Http\Controllers\Tools\TeamAppStatsController;
+use App\Http\Controllers\Tools\TeamSponsorshipController;
 use App\Http\Controllers\Tools\WalmartUsAuditController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,25 @@ Route::middleware(['auth', 'permission:tool.team-app-stats'])
         Route::get('/social/top-posts', [TeamAppStatsController::class, 'socialTopPosts'])->name('social.top-posts');
         Route::get('/social/top-followed', [TeamAppStatsController::class, 'socialTopFollowed'])->name('social.top-followed');
         Route::get('/social/history', [TeamAppStatsController::class, 'socialHistory'])->name('social.history');
+    });
+
+// Team Sponsorship and its Stats page are granted separately: Stats sits
+// under the tool's URL but has its own permission.
+Route::middleware(['auth', 'permission:tool.team-sponsorship'])
+    ->prefix('tools/team-sponsorship')
+    ->name('tools.team-sponsorship.')
+    ->group(function () {
+        Route::get('/', [TeamSponsorshipController::class, 'index'])->name('index');
+        Route::post('/search', [TeamSponsorshipController::class, 'search'])->name('search');
+        Route::post('/orders', [TeamSponsorshipController::class, 'storeOrder'])->name('orders.store');
+    });
+
+Route::middleware(['auth', 'permission:tool.team-sponsorship-stats'])
+    ->prefix('tools/team-sponsorship/stats')
+    ->name('tools.team-sponsorship.')
+    ->group(function () {
+        Route::get('/', [TeamSponsorshipController::class, 'stats'])->name('stats');
+        Route::get('/export', [TeamSponsorshipController::class, 'exportStats'])->name('stats.export');
     });
 
 Route::middleware(['auth', 'permission:tool.walmart-us-listing-auditor'])

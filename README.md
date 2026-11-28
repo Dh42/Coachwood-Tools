@@ -218,6 +218,31 @@ Ported from the old app (plan section 5.1). Reads only: nothing is written to an
 - **Settings (`.env`):** `BIOSTEEL_TEAMS_BASE_URL`, `BIOSTEEL_TEAMS_USERNAME` and `BIOSTEEL_TEAMS_PASSWORD`, plus `GOOGLE_TEAM_APP_STATS_KEY_FILE`, the path to the service-account JSON key, outside `public/`. The Ad Manager report and the GA4 property IDs are in `config/team_app_stats.php`.
 - **Import and comparison:** `legacy:import-team-app-stats` (with `--dry-run`) and `compare:team-app-stats` (`--from`, `--to`; by default the 30 days to yesterday). See below.
 
+### BioSteel Team Sponsorship (`/tools/team-sponsorship`, `tool.team-sponsorship`) and Sponsorship Stats (`/tools/team-sponsorship/stats`, `tool.team-sponsorship-stats`)
+
+Ported from the old app (plan section 5.7). Two tools with separate permissions, in the "BioSteel Teams" group.
+
+- **Sponsorship page:** search a coach's email. Their teams come live from the BioSteel Teams API, with each team's sport, bottle count, scheduled events and a "possible fraud" flag. Live Shopify stock for the four sponsorship products is shown too. "Create Order" opens a dialog to confirm the bottle count, then:
+  - creates a free Shopify draft order: bottles and sample packs at that count, one towel per 5 bottles up to 3, and a puck per bottle for hockey teams
+  - emails the coach the invoice
+  - records the order and its items here
+  - sends Klaviyo's "Claimed Sponsorship Package" event
+- **Repeat orders:** a team that already has an order is refused on the server too, not only by the hidden button (found issue 1). The script is `resources/js/tools/team-sponsorship.js`.
+- **Writes:** the draft order and invoice email (`ShopifyClient::createSponsorshipDraftOrder`) and the Klaviyo event (`KlaviyoClient::sendEvent`). Both refuse while `TOOLS_EXTERNAL_WRITES` is off. The page then says so and lists what the order would have contained.
+- **Stats page:**
+  - totals and sponsorships per month
+  - the top 10 requesters
+  - the share of sponsorships whose team has never added an event, and the emails reachable through sponsored teams, from the nightly refresh
+  - units sent per product per month
+  - every sponsorship with its team's activity, with a CSV export of all rows (`resources/js/tools/team-sponsorship-stats.js` draws the charts)
+- **Scheduled:** `team-sponsorship:refresh-activity` at 01:00 UTC. It resolves each sponsored team's BioSteel IDs (paging the whole org-wide roster) and caches its counts in `team_sponsorship_activity`.
+- **One-off:** `team-sponsorship:backfill-order-items` recovered the item breakdown of orders made before items were recorded. It reads Shopify only, and the import brings its results across.
+- **Settings:**
+  - `SHOPIFY_STORE` and `SHOPIFY_ACCESS_TOKEN` (`services.shopify`, the REST Admin API at version 2024-01; found issue 4)
+  - `BIOSTEEL_TEAMS_*`
+  - `KLAVIYO_BS_PRIVATE_API_KEY` (`config/klaviyo.php`, shared with Combined Shipping later)
+  - the product and variant IDs in `config/team_sponsorship.php`
+
 ### Walmart US Listing Auditor (`/tools/walmart-us-listing-auditor`, `tool.walmart-us-listing-auditor`)
 
 Ported from the old app (plan section 5.2). Reads only. Requesting Walmart's LISTING_QUALITY report changes no listing.
@@ -396,6 +421,16 @@ The largest import (about 1.4 million lines). It works 1,000 orders at a time, e
 `--dry-run` reads and counts only and writes nothing. The comparison covers orders placed more than three days ago (`--days`), hashing lines, discounts and the rebuilt rollups as sets (`App\Legacy\MultisetHash`), since IDs differ between the apps.
 
 Both apps keep saving orders while they run side by side, so a small difference in lines or discounts is normal. When there is one, the comparison finds the orders that differ and sorts them by their newest line save time (the import copies `updated_at`): only in the old app, only here, saved in the old app after this copy, saved here after the old app, or different with the same save time. It prints a count of orders and lines and the newest save time on each side, never order values. Saves in the old app after the import started are the two apps both running: re-run the import and compare straight after. "Different, same save time", or orders only in the old app whose newest save there came before the import, need a look.
+
+### `legacy:import-team-sponsorship` and `compare:team-sponsorship`
+
+```bash
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-team-sponsorship --dry-run
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-team-sponsorship
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:team-sponsorship
+```
+
+`orders`, `order_items` and `team_sponsorship_activity` are copied exactly, IDs included (order items point at their order by ID), in one transaction. The old app wins, so this app's own activity refresh is replaced on each run. Two tables have a second unique key: orders on the Shopify ID, and activity on email and team, compared case-insensitively. A row here that holds a key the old app has under a different ID is removed first, then replaced by the old app's row. The comparison hashes the three tables and the Stats page's figures: totals, orders per month, units per product per month, and the activity sums. It needs to run again at cutover (plan section 6).
 
 ## One-time commands
 
