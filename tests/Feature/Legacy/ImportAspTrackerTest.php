@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Legacy;
 
+use App\Legacy\AspTrackerComparison;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -130,8 +131,36 @@ class ImportAspTrackerTest extends TestCase
         DB::table('asp_sales_lines')->where('line_item_id', 201)->update(['product_title' => 'Edited here']);
         $this->artisan('compare:asp-tracker')
             ->expectsOutputToContain('1 section(s) differ.')
+            ->expectsOutputToContain(AspTrackerComparison::SAME_SAVE_TIME)
             ->doesntExpectOutputToContain('Edited here')
             ->doesntExpectOutputToContain('Made-up')
+            ->doesntExpectOutputToContain('#100')
             ->assertFailed();
+    }
+
+    public function test_differing_orders_are_sorted_by_which_app_saved_them_last(): void
+    {
+        $this->artisan('legacy:import-asp-tracker')->assertSuccessful();
+        $old = DB::connection('legacy');
+
+        // While both apps run: the old app re-saves order 1001 after the copy,
+        // and receives order 1004 (placed before the cutoff) only now.
+        $old->table('asp_sales_lines')->where('order_id', 1001)->update(['refunded_qty' => 1, 'updated_at' => '2026-11-27 12:00:00']);
+        $old->table('asp_sales_lines')->insert($this->line(401, 1004, 'Made-up Late', 1, 20.00, ['updated_at' => '2026-11-27 12:05:00']));
+        $old->table('asp_line_discounts')->insert(['line_item_id' => 401, 'order_id' => 1004, 'label' => 'MADEUP5', 'label_group' => 'MADEUP5', 'discount_type' => 'code', 'level' => 'order', 'amount' => 1.00]);
+        // This app's own queue re-saved order 1002.
+        DB::table('asp_sales_lines')->where('order_id', 1002)->update(['financial_status' => 'refunded', 'updated_at' => '2026-11-27 12:10:00']);
+
+        $result = app(AspTrackerComparison::class)->run(new \DateTimeImmutable('2026-11-01 00:00:00'));
+
+        $this->assertSame([
+            ['what' => AspTrackerComparison::OLD_ONLY, 'orders' => 1, 'old_lines' => 1, 'new_lines' => 0, 'old_saved' => '2026-11-27 12:05:00', 'new_saved' => null],
+            ['what' => AspTrackerComparison::SAVED_IN_OLD_LATER, 'orders' => 1, 'old_lines' => 2, 'new_lines' => 2, 'old_saved' => '2026-11-27 12:00:00', 'new_saved' => null],
+            ['what' => AspTrackerComparison::SAVED_HERE_LATER, 'orders' => 1, 'old_lines' => 1, 'new_lines' => 1, 'old_saved' => null, 'new_saved' => '2026-11-27 12:10:00'],
+        ], $result['orders']);
+
+        // A re-import brings this app back in line with the old one.
+        $this->artisan('legacy:import-asp-tracker')->assertSuccessful();
+        $this->assertSame([], app(AspTrackerComparison::class)->run(new \DateTimeImmutable('2026-11-01 00:00:00'))['orders']);
     }
 }

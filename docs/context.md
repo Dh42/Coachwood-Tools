@@ -7,6 +7,25 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-04: ASP comparison on the server, and a per-order breakdown
+
+### What changed
+- **Server run (verified live):** the platform import and `legacy:import-asp-tracker` ran cleanly, with 1,443,107 lines, 929,180 discounts and 9 queued orders. `compare:asp-tracker` matched both rebuilt rollup tables, through the day before the cutoff. The line and discount sections differed: the old app had 17 more lines and 34 more discounts for orders placed before the cutoff. Because the rollups match, the differing orders are all from the last day before the cutoff, which the rollup check leaves out. The old app was saving orders throughout: its queue grew from 6 to 9 between the dry run and the import. That fits orders it saved after the import read them, but this is **assumed**, not shown.
+- **`compare:asp-tracker` now breaks a difference down by order.** While hashing, it also sums rows into 4,093 groups by order ID. It then re-reads only the groups that differ (at most 64), finds the orders whose lines or discounts differ, and sorts them by their newest line save time (`updated_at`, which the import copies). It prints counts and save times only. The groups use a prime because Shopify order IDs are all multiples of 2,048 (**verified** on the local copy): with 4,096 groups every order landed in 2 of them, and one difference took 880 s and 405 MB.
+- `MultisetHash` gained `rowHash`, `combine` and `addHash`; `add` is unchanged.
+
+### Test status
+- 637 tests pass on SQLite, including a new `ImportAspTrackerTest` case that covers three of the five kinds of difference and a re-import that clears them. Pint is clean.
+- **Verified on the full local copy,** in a scratch MariaDB that has since been removed:
+  - With no differences, the compare still matches, in 137 s (114 s before).
+  - With made-up differences inside a rolled-back transaction, it found both orders and sorted them correctly, in 149 s and 83 MB.
+
+### Open questions
+- What the 17 lines are. Lesley re-runs the import and compare once this deploys. The breakdown will show whether they were saved in the old app after the copy (expected) or something else.
+
+### Next step
+Step 10, Team Sponsorship and Team Sponsorship Stats, once the ASP compare is explained.
+
 ## 2026-12-04: step 9, ASP Tracker (Canadian Protein and BioSteel)
 
 ### What changed

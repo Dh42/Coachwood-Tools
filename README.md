@@ -395,6 +395,8 @@ The largest import (about 1.4 million lines). It works 1,000 orders at a time, e
 
 `--dry-run` reads and counts only and writes nothing. The comparison covers orders placed more than three days ago (`--days`), hashing lines, discounts and the rebuilt rollups as sets (`App\Legacy\MultisetHash`), since IDs differ between the apps.
 
+Both apps keep saving orders while they run side by side, so a small difference in lines or discounts is normal. When there is one, the comparison finds the orders that differ and sorts them by their newest line save time (the import copies `updated_at`): only in the old app, only here, saved in the old app after this copy, saved here after the old app, or different with the same save time. It prints a count of orders and lines and the newest save time on each side, never order values. Saves in the old app after the import started are the two apps both running: re-run the import and compare straight after. "Different, same save time", or orders only in the old app whose newest save there came before the import, need a look.
+
 ## One-time commands
 
 ### `amazon:probe` (Phase 0)

@@ -28,7 +28,17 @@ class CompareAspTrackerCommand extends Command
 
         $mismatches = count(array_filter($result['sections'], fn (array $s) => ! $s['match']));
         if ($mismatches > 0) {
-            $this->warn("{$mismatches} section(s) differ. The rollups follow the lines; if the old app's nightly rebuild hasn't run since a late refund, re-run the import first.");
+            $this->warn("{$mismatches} section(s) differ.");
+            if ($result['orders'] !== []) {
+                $this->line('Orders that differ, by their newest line save time (UTC)'.($result['sampled'] ? ', from a sample of the differing orders:' : ':'));
+                $this->table(['What', 'Orders', 'Lines (old)', 'Lines (here)', 'Newest save (old)', 'Newest save (here)'], array_map(
+                    fn (array $g) => [$g['what'], $g['orders'], $g['old_lines'], $g['new_lines'], $g['old_saved'] ?? '-', $g['new_saved'] ?? '-'],
+                    $result['orders'],
+                ));
+                $this->line('Saves after the import started are the two apps both running: re-run the import, then compare straight after. Anything else needs a look.');
+            } else {
+                $this->line('The rollups follow the lines; if the old app\'s nightly rebuild hasn\'t run since a late refund, re-run the import first.');
+            }
 
             return self::FAILURE;
         }

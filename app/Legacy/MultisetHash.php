@@ -18,8 +18,24 @@ final class MultisetHash
     /** @param  array<string, mixed>  $row */
     public function add(array $row): void
     {
-        $this->sum = ($this->sum + hexdec(substr(sha1(json_encode(RowHasher::normalise($row))), 0, 15))) & 0x0FFFFFFFFFFFFFFF;
+        $this->addHash(self::rowHash($row));
+    }
+
+    public function addHash(int $rowHash): void
+    {
+        $this->sum = self::combine($this->sum, $rowHash);
         $this->count++;
+    }
+
+    /** @param  array<string, mixed>  $row */
+    public static function rowHash(array $row): int
+    {
+        return hexdec(substr(sha1(json_encode(RowHasher::normalise($row))), 0, 15));
+    }
+
+    public static function combine(int $sum, int $rowHash): int
+    {
+        return ($sum + $rowHash) & 0x0FFFFFFFFFFFFFFF;
     }
 
     public function count(): int
