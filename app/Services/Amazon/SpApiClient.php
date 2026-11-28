@@ -3,6 +3,8 @@
 namespace App\Services\Amazon;
 
 use App\Services\AmazonListings\ListingChannel;
+use App\Support\ExternalWrites;
+use App\Support\ExternalWritesDisabled;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -112,11 +114,20 @@ class SpApiClient
         ], null, $channel->refreshToken());
     }
 
+    /**
+     * A listing PATCH. With $preview it is Amazon's VALIDATION_PREVIEW, which
+     * changes nothing; a real PATCH is an external write and needs the
+     * writes switch (plan section 2, rule 3).
+     *
+     * @throws ExternalWritesDisabled when $preview is false and writes are off
+     */
     public function patchListing(string $sku, string $productType, array $patches, bool $preview, ListingChannel $channel): array
     {
         $query = ['marketplaceIds' => [$channel->marketplaceId()], 'includedData' => ['issues']];
         if ($preview) {
             $query['mode'] = 'VALIDATION_PREVIEW';
+        } else {
+            ExternalWrites::ensureAllowed('Amazon listing PATCH');
         }
 
         return $this->request('PATCH', '/listings/2021-08-01/items/'.$channel->identityCode().'/'.rawurlencode($sku), $query, [

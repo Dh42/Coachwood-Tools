@@ -422,6 +422,18 @@ class ImportPlatformTest extends TestCase
         $this->assertSame(22, $tool->sort_order);
     }
 
+    /** Decision 2026-12-06: both apps share one SP-API rate limit, so this app's audit runs after the old app's. */
+    public function test_the_listings_audit_keeps_its_later_time_until_cutover(): void
+    {
+        DB::connection('legacy')->table('scheduled_tasks')->insert(['name' => 'Listings Audit Run', 'command' => 'listings:audit-run', 'cron_expression' => '0 8 * * *', 'timezone' => null, 'enabled' => true]);
+
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+
+        $task = ScheduledTask::where('command', 'listings:audit-run')->sole();
+        $this->assertSame('30 8 * * *', $task->cron_expression);
+        $this->assertTrue($task->enabled);
+    }
+
     public function test_the_snapshot_clean_up_runs_wherever_the_sweep_runs(): void
     {
         // The old app has the sweep on and its clean-up off (decision 2026-12-01).

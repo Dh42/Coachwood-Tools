@@ -34,8 +34,9 @@ use Spatie\Permission\PermissionRegistrar;
  *   stops the import before anything is written
  * - scheduled tasks (3h), matched by command: the old app's enabled flag,
  *   schedule and timezone are copied onto tasks registered here. Tasks not
- *   ported yet are not created, and `asp:backfill` always stays disabled
- *   until cutover (plan section 2, rule 6). Run history is not copied
+ *   ported yet are not created, `asp:backfill` always stays disabled until
+ *   cutover (plan section 2, rule 6), and the listings audit keeps its
+ *   later time here (SHIFTED_UNTIL_CUTOVER). Run history is not copied
  * - renamed tools (decision D7): the old slug's order, active flag and
  *   `tool.<slug>` grants move to the new slug. The old permission is not
  *   created here
@@ -367,6 +368,14 @@ final class PlatformImporter
     /** Commands that stay disabled here whatever the old app says (plan section 2, rule 6). */
     public const DISABLED_UNTIL_CUTOVER = ['asp:backfill'];
 
+    /**
+     * Command => the schedule it keeps here until cutover, whatever the old
+     * app's. Both apps share one SP-API rate limit, so this app's listings
+     * audit runs after the old app's 08:00 run (decision 2026-12-06). At
+     * cutover it goes back to 08:00.
+     */
+    public const SHIFTED_UNTIL_CUTOVER = ['listings:audit-run' => '30 8 * * *'];
+
     private function importScheduledTasks(): void
     {
         $old = $this->legacy->table('scheduled_tasks')->get(['command', 'enabled', 'cron_expression', 'timezone']);
@@ -378,7 +387,7 @@ final class PlatformImporter
             $values = [
                 // Matched on the command's name: the ASP backfill is "asp:backfill CP" and "asp:backfill BS".
                 'enabled' => $enabled && ! in_array(strtok($row->command, ' '), self::DISABLED_UNTIL_CUTOVER, true),
-                'cron_expression' => $row->cron_expression,
+                'cron_expression' => self::SHIFTED_UNTIL_CUTOVER[$row->command] ?? $row->cron_expression,
                 'timezone' => $row->timezone,
             ];
             $here = $this->db->table('scheduled_tasks')->where('command', $row->command)->first(['enabled', 'cron_expression', 'timezone']);

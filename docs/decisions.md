@@ -2,6 +2,16 @@
 
 Each entry records a decision that replaces or adds to a default in `docs/build-spec.md`. Where this file and the spec differ, this file wins. Newest first.
 
+## 2026-12-06: Listings Editors
+
+Decided by Lesley while porting the VC and SC Listings Editors.
+
+| Topic | Decision | Replaces |
+| --- | --- | --- |
+| Rejected submissions (found issue 16) | Stay in the edit history, marked REJECTED with who sent them. Only accepted ones count toward Our Contribution. The page now says every submission is logged | The old help text: "every accepted change is logged" |
+| SKUs gone from Seller Central (found issue 15) | After a complete all-listings report, a SKU missing from it is marked `Removed`: it leaves the picker, and its audits and edit history stay. It comes back if a later report has it | Sync only added and updated |
+| Daily listings audit until cutover | This app's `listings:audit-run` runs at 08:30 UTC, after the old app's 08:00 run, because both apps share one SP-API rate limit and the old app doesn't retry on 429. The platform import keeps 08:30. At cutover it goes back to 08:00 | Plan section 2, rule 6 (old cron kept) for this task |
+
 ## 2026-12-03: CDQ consistency check
 
 Decided by Lesley while porting the CDQ Listing Quality Report.

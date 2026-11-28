@@ -37,6 +37,10 @@ class ProbeClientTest extends TestCase
 
     public function test_a_listing_submission_is_refused_before_anything_is_sent(): void
     {
+        // With writes off, SpApiClient::patchListing refuses a real PATCH
+        // itself (step 11). The probe must refuse even with writes on.
+        config(['tools.external_writes' => true]);
+
         try {
             (new ProbeClient)->patchListing('SKU-1', 'DRINK_FLAVORED', [['op' => 'replace']], false, ListingChannel::Vendor);
             $this->fail('Expected a LogicException.');

@@ -3,6 +3,8 @@
 use App\Http\Controllers\Tools\AspTrackerController;
 use App\Http\Controllers\Tools\CdqReportController;
 use App\Http\Controllers\Tools\FeedbackController;
+use App\Http\Controllers\Tools\Listings\SellerListingController;
+use App\Http\Controllers\Tools\Listings\VendorListingController;
 use App\Http\Controllers\Tools\StockoutController;
 use App\Http\Controllers\Tools\TeamAppStatsController;
 use App\Http\Controllers\Tools\TeamSponsorshipController;
@@ -87,3 +89,29 @@ foreach (config('asp_tracker.stores', []) as $aspStore => $aspConfig) {
             Route::get('/export.csv', [AspTrackerController::class, 'exportCsv'])->defaults('store', $aspStore)->name('export-csv');
         });
 }
+
+Route::middleware(['auth', 'permission:tool.vc-listings'])
+    ->prefix('tools/vc-listings')
+    ->name('tools.vc-listings.')
+    ->group(function () {
+        Route::get('/', [VendorListingController::class, 'index'])->name('index');
+        Route::post('/submit', [VendorListingController::class, 'submit'])->name('submit');
+        Route::post('/audit/run', [VendorListingController::class, 'auditRun'])->name('audit.run');
+        Route::post('/audit/batch', [VendorListingController::class, 'auditBatch'])->name('audit.batch');
+        Route::post('/audit/config', [VendorListingController::class, 'auditConfig'])->name('audit.config');
+        Route::post('/export/batch', [VendorListingController::class, 'exportBatch'])->name('export.batch');
+    });
+
+Route::middleware(['auth', 'permission:tool.sc-listings'])
+    ->prefix('tools/sc-listings')
+    ->name('tools.sc-listings.')
+    ->group(function () {
+        Route::get('/', [SellerListingController::class, 'index'])->name('index');
+        Route::post('/submit', [SellerListingController::class, 'submit'])->name('submit');
+        Route::post('/sync', [SellerListingController::class, 'syncProducts'])->name('sync');
+        Route::post('/sync/start', [SellerListingController::class, 'syncStart'])->name('sync.start');
+        Route::post('/sync/poll', [SellerListingController::class, 'syncPoll'])->name('sync.poll');
+        Route::post('/audit/run', [SellerListingController::class, 'auditRun'])->name('audit.run');
+        Route::post('/audit/batch', [SellerListingController::class, 'auditBatch'])->name('audit.batch');
+        Route::post('/audit/config', [SellerListingController::class, 'auditConfig'])->name('audit.config');
+    });

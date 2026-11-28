@@ -7,6 +7,91 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-06: step 11, VC and SC Listings Editors
+
+### What changed
+Step 11 of the plan, section 5.8. Uncommitted in the working copy; Lesley commits.
+
+- **Ported unchanged:**
+  - `VendorListingController` and `SellerListingController` (`App\Http\Controllers\Tools\Listings`)
+  - `AttributeEngine`, `ListingAuditService`, `NutritionFormBuilder`
+  - the eight listing models
+  - `listings:audit-run` and `listings:repair-double-encoded-audited-attributes`
+
+  `SpApiClient` and `ListingChannel` came across in step 2. `Product` and `ScProduct` gained their listing relations.
+- **Tables:** the eight `*listing_*` tables in the old app's final shape, in one migration.
+- **Registration:** both tools under "Amazon · Listings", with the old app's names and descriptions; icons `edit` and `globe`.
+- **Schedule:** the daily audit runs at 08:30 UTC until cutover (below).
+- **Pages rebuilt on the new design:** one shared view for both channels (`tools/listings/_page`), the editor partial, the row partial, and `resources/js/tools/listings.js`. The script does search, filter buttons, column sort (a row and its open editor move together), opening the editor under a row, Audit Listings in batches, Export All (VC) and Sync Products (SC). Each page has a Tutorial tour.
+- **Long messages stay on screen:** the old page kept Amazon's validation messages up, but this app's toasts vanish after 4 s. `<x-layouts.app :flash-inline="true">` now skips the toasts and the page shows them with `<x-flash-notices />`.
+- **Write guard (plan section 2, rule 3):**
+  - `SpApiClient::patchListing` refuses a real PATCH (`ExternalWritesDisabled`); the preview still goes.
+  - While writes are off, Submit runs Amazon's `VALIDATION_PREVIEW` and then stops: nothing is submitted or logged, and the page names what Amazon accepted.
+  - The page says submissions are off, and the button reads "Validate only".
+- **Fixes (`ListingsEditorFixesTest`; 6 of its 9 tests fail on the old code, the other 3 cover the write switch and registration):**
+  - found issue 9: changing the audit columns needs the admin role
+  - 15: Sync marks SKUs missing from a complete report as `Removed`. A report without `seller-sku` now fails instead of reading the first column as SKUs, which together with the new step would have marked every real SKU removed.
+  - 16: kept, as Lesley decided. Rejections stay in the history; the page text now says every submission is logged.
+- **This app's own bugs, fixed:**
+  - 34: `RowHasher` cut every text value to 19 characters, so the `compare:*` commands were blind after that. Now only date-times are cut. Every earlier compare was re-run on real data and still matches (below). Test: `RowHasherTest`.
+  - `.table-wrap` wasn't positioned, so `.sr-only` labels in table cells escaped its scroll box and widened the whole page. It is now `position: relative`.
+- **Import:** `legacy:import-listings` (`ListingsImporter`) mirrors the six tables with IDs through `TableMirror`, and the two attribute catalogs on `attribute_key`. `compare:listings` hashes all eight tables a chunk at a time and each page's figures from the latest audits.
+- **Products import:** the SC Sync Products writes `sc_products` here too. So `legacy:import-products` now clears rows holding a SKU the old app has under another ID before the mirror. Step 10's clash clearing moved into `MirrorImports::run` (`$uniqueKeys`), and `TeamSponsorshipImporter` uses it unchanged.
+
+### Decisions (Lesley, 2026-12-06; in `decisions.md`)
+- Found issue 16: keep logging rejected submissions.
+- Found issue 15: mark SKUs gone from the report `Removed`.
+- This app's `listings:audit-run` runs at 08:30 UTC until cutover. Both apps share one SP-API rate limit, and the old app doesn't retry on 429. `PlatformImporter::SHIFTED_UNTIL_CUTOVER` keeps 08:30 through the platform import (`ImportPlatformTest`).
+
+### Test status
+- 824 pass on SQLite and on MariaDB 10.11 (a scratch container, since removed), and on a clean-copy CI replay. Pint is clean and `npm run build` is OK.
+- **Carried over:** all 101 old tests (Vendor 43, Seller 19, AttributeEngine 16, ListingAuditService 15, NutritionFormBuilder 7, the repair command 1).
+  - **Changed on purpose:** `VendorListingTest` and `SellerListingTest` turn writes on in setup, with a comment, as in steps 9 and 10.
+  - `test_editor_shows_the_listing_issues_panel_expanded_...` checked Bootstrap's `accordion-collapse collapse show`. It now checks the new design's open `<details>`, with a comment.
+- **This app's own tests changed:**
+  - `SpApiClientTest::test_patch_listing_omits_preview_mode_for_a_real_submission` turns writes on.
+  - `ProbeClientTest`'s listing-submission test turns writes on, to show the probe refuses even then.
+- **New:** 17 tests in `ListingsEditorFixesTest` (9), `ImportListingsTest` (4), `RowHasherTest` (3) and `ImportPlatformTest` (1).
+
+### Verified
+- **Real data (verified on the local copy of the old database):**
+  - The import copied 24,712 rows (14,872 VC and 9,284 SC audits, 164 and 154 edits, 9 column settings, 142 and 87 catalog keys) in about 9 s. A second run changed nothing.
+  - `compare:listings` matched all 10 sections.
+  - With the stricter `RowHasher`, these compares still match after a fresh import: Team Sponsorship, US Product Reviews, CDQ, Lost Sales, and ASP Tracker (1.4 million sales lines).
+- **Pages (verified in headless Chrome with real input):** both pages ran on the imported data, with a stand-in SP-API on 127.0.0.1 that returned made-up listings and reports. The access token was pre-cached, so nothing reached Amazon.
+  - **Search and filters:** search narrows the table and says so. Each filter button narrows it and shows as pressed.
+  - **Sort:** the Images column sorts both ways.
+  - **Editor:** the arrow and the title open the editor under the row and update the URL, and clicking again closes it. The weight unit is a dropdown from the schema, and the browse node's name shows.
+  - **Validate:** with writes off, Validate shows the "preview accepted, nothing sent" notice, and the editor reopens. The stand-in got 0 real PATCHes out of 1,433 requests.
+  - **Audit and export:** Audit Listings shows progress and swaps rows. Export All downloaded 132 rows by 150 columns, every row full width, with no fetch errors.
+  - **Sync:** SC Sync Products polled, reloaded, and listed only the report's 2 active SKUs; the others were marked Removed. A report with no `seller-sku` column (the stand-in's first try) was refused and changed nothing.
+  - **Tours and layout:** both tours start. No sideways page scroll at 390, 768 or 1440 px after the two layout fixes above. No script errors.
+- **Assumed:** the real PATCH works unchanged once writes are on. That code is ported unchanged, but it can't be exercised before cutover.
+
+### Open questions
+- Found issue 21 (no 429 retry in `SpApiClient`) is still open. The 08:30 shift avoids the two daily audits overlapping, but a person running Audit Listings or Export All in both apps at once can still be throttled.
+
+### Next step
+Lesley deploys, then runs `legacy:import-platform`, `legacy:import-products`, `legacy:import-listings` and `compare:listings` on the server. Then step 12, the VC Image Manager, which writes `listing_edits` too.
+
+## 2026-12-05: step 10 on the server, and the Shopify API version
+
+### What changed
+- Lesley deployed step 10 (commit `4b68e32`) and ran `legacy:import-team-sponsorship` on the server.
+- **Found issue 4 decided:** Lesley keeps the Shopify REST API pinned at 2024-01 for the time being. Its status in `found-issues.md` is now `keep for now`, with the check to run whenever it does move. No code changed.
+
+### Test status
+No code changed since the step 10 entry: 706 pass.
+
+### Verified
+- **Reported by Lesley:** the server import is done. The compare output wasn't shared here.
+
+### Open questions
+None for step 10.
+
+### Next step
+Step 11, the VC and SC Listings Editors.
+
 ## 2026-12-05: step 10, Team Sponsorship and Sponsorship Stats
 
 ### What changed
@@ -56,7 +141,7 @@ Step 10 of the plan, section 5.7. Uncommitted in the working copy; Lesley commit
 - **Assumed:** the live draft order and invoice keep working unchanged. That code is ported unchanged, but it can't be exercised until writes are on.
 
 ### Open questions
-- Found issue 4: when to move off Shopify API version 2024-01 (proposal: at cutover).
+- Found issue 4: when to move off Shopify API version 2024-01 (proposal: at cutover). Decided in the next entry: keep it for now.
 
 ### Next step
 Lesley deploys and runs the import and compare on the server. Then step 11, the VC and SC Listings Editors.

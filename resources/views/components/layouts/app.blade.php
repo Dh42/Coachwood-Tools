@@ -8,7 +8,7 @@
         ...page content...
     </x-layouts.app>
 --}}
-@props(['title' => null, 'breadcrumb' => null, 'heading' => null])
+@props(['title' => null, 'breadcrumb' => null, 'heading' => null, 'flashInline' => false])
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="{{ \App\View\Preferences::theme() }}" data-font-size="{{ \App\View\Preferences::fontSize() }}"@auth data-preferences-url="{{ route('preferences.update') }}"@endauth>
 <head>
@@ -29,6 +29,6 @@
         </div>
     </main>
 </div>
-<x-toasts />
+<x-toasts :inline="$flashInline" />
 </body>
 </html>

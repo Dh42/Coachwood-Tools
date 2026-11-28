@@ -814,6 +814,144 @@
         grid-template-columns: max-content 1fr;
     }
 
+    /* VC and SC Listings Editors: a wide, dense table with an editor row
+       that opens under a listing. The editor keeps to the visible width of
+       the table's scroll area (set by listings.js) and stays at its left
+       edge, however wide the table is. */
+    .listings-table .product-cell {
+        white-space: normal;
+        min-width: 14rem;
+    }
+
+    .listings-table .product-title {
+        display: block;
+        max-width: 18rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: var(--weight-medium);
+    }
+
+    .listings-table tr[id^='row-'] {
+        scroll-margin-top: 3rem;
+    }
+
+    .listings-table tr.is-selected td {
+        background: var(--surface-2);
+    }
+
+    .listings-table tr.is-selected .listing-row-link .icon {
+        transform: rotate(180deg);
+    }
+
+    .listings-table .editor-row td {
+        white-space: normal;
+        padding: var(--space-4);
+        background: var(--bg);
+    }
+
+    .listings-table .editor-row:hover {
+        background: transparent;
+    }
+
+    .listings-table #expanded-content {
+        position: sticky;
+        left: var(--space-4);
+        width: min(64rem, calc(var(--listings-wrap-width, 100%) - 2 * var(--space-4)));
+    }
+
+    .listings-table .has-tooltip {
+        cursor: help;
+    }
+
+    .listing-group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: var(--space-3) var(--space-4) var(--space-4);
+        min-width: 0;
+    }
+
+    .listing-group > legend {
+        padding: 0 var(--space-1);
+    }
+
+    .listing-item {
+        display: grid;
+        gap: var(--space-3);
+        grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    }
+
+    .listing-item + .listing-item {
+        border-top: 1px dashed var(--border);
+        padding-top: var(--space-3);
+    }
+
+    .listing-bullet {
+        display: grid;
+        grid-template-columns: 1.5rem 1fr;
+        align-items: center;
+        gap: var(--space-2);
+    }
+
+    /* A field that drifted from our last accepted submission. The note
+       inside says so in words; the outline only repeats it. */
+    .listing-field-mismatch {
+        outline: 2px solid var(--bad);
+        outline-offset: var(--space-2);
+        border-radius: var(--radius-lg);
+    }
+
+    .listing-issue-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+    }
+
+    .listing-issue-list > li + li {
+        border-top: 1px solid var(--border);
+        padding-top: var(--space-3);
+    }
+
+    .tone-text-bad {
+        color: var(--bad);
+    }
+
+    .card.card-tone-bad {
+        border-color: var(--bad);
+    }
+
+    /* The filter buttons wrap onto more lines on a narrow screen. */
+    .segmented.segmented-wrap {
+        display: inline-flex;
+        flex-wrap: wrap;
+        max-width: 100%;
+        border-radius: var(--radius-lg);
+    }
+
+    .segmented.segmented-wrap button {
+        padding: 0 var(--space-3);
+    }
+
+    /* Takes no room until a bar is showing. */
+    .listing-progress-group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+
+    .listing-progress-group:not(:has(> :not([hidden]))) {
+        display: none;
+    }
+
+    .listing-progress progress {
+        width: 100%;
+        height: 0.5rem;
+        accent-color: var(--accent);
+    }
+
     /* A table row that opens something (ASP Tracker periods). */
     .table .row-link {
         cursor: pointer;
@@ -1164,7 +1302,10 @@
         justify-content: space-between;
     }
 
+    /* Positioned, so absolutely positioned content inside (.sr-only labels
+       in cells) is clipped by the scroll box instead of widening the page. */
     .table-wrap {
+        position: relative;
         overflow-x: auto;
         border: 1px solid var(--border);
         border-radius: var(--radius-xl);

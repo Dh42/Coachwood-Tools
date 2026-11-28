@@ -11,7 +11,9 @@ final class RowHasher
 {
     /**
      * Every number to 4 decimal places and every date-time to the second.
-     * An md5 (a hashed blob) is left as it is.
+     * An md5 (a hashed blob) and any other text are left as they are. (Until
+     * 2026-12-06 every text value was cut to 19 characters, so a difference
+     * after that went unseen.)
      *
      * @param  array<string, mixed>  $row
      * @return array<string, mixed>
@@ -29,7 +31,9 @@ final class RowHasher
                 return number_format((float) $value, 4, '.', '');
             }
 
-            return substr((string) $value, 0, 19);
+            $value = (string) $value;
+
+            return preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/', $value) ? substr($value, 0, 19) : $value;
         }, $row);
     }
 

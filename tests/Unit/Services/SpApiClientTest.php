@@ -97,6 +97,9 @@ class SpApiClientTest extends TestCase
 
     public function test_patch_listing_omits_preview_mode_for_a_real_submission(): void
     {
+        // A real PATCH needs writes on since step 11 (plan section 2, rule 3);
+        // ListingsEditorFixesTest covers it refusing with writes off.
+        config(['tools.external_writes' => true]);
         $this->fakeToken();
         Http::fake(['sp-api.test/listings/2021-08-01/items/*' => Http::response(['status' => 'ACCEPTED'])]);
 

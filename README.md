@@ -238,7 +238,7 @@ Ported from the old app (plan section 5.7). Two tools with separate permissions,
 - **Scheduled:** `team-sponsorship:refresh-activity` at 01:00 UTC. It resolves each sponsored team's BioSteel IDs (paging the whole org-wide roster) and caches its counts in `team_sponsorship_activity`.
 - **One-off:** `team-sponsorship:backfill-order-items` recovered the item breakdown of orders made before items were recorded. It reads Shopify only, and the import brings its results across.
 - **Settings:**
-  - `SHOPIFY_STORE` and `SHOPIFY_ACCESS_TOKEN` (`services.shopify`, the REST Admin API at version 2024-01; found issue 4)
+  - `SHOPIFY_STORE` and `SHOPIFY_ACCESS_TOKEN` (`services.shopify`, the REST Admin API at version 2024-01, kept for now; found issue 4)
   - `BIOSTEEL_TEAMS_*`
   - `KLAVIYO_BS_PRIVATE_API_KEY` (`config/klaviyo.php`, shared with Combined Shipping later)
   - the product and variant IDs in `config/team_sponsorship.php`
@@ -275,6 +275,20 @@ Ported from the old app (plan section 5.6): one tool per store, Canadian Protein
 - **Page:** filters (dates, day/week/month, product with search, variant, order type, channel, free items) and date presets; six headline figures; a key; ASP, product ASP and list ASP over time with units underneath (click a point, bar or period row for the discounts behind it); by-variant, by-product and by-period tables with CSV; how each number is worked out; data status; a Tutorial tour. The script is `resources/js/tools/asp-tracker.js`.
 - **Settings:** `SHOPIFY_CP_STORE`, `SHOPIFY_CP_ACCESS_TOKEN`, `SHOPIFY_STORE`, `SHOPIFY_ACCESS_TOKEN` (the brands in `config/combined_shipping.php`, shared with Combined Shipping later), and the two webhook secrets.
 
+### VC Listings Editor (`/tools/vc-listings`, `tool.vc-listings`) and SC Listings Editor (`/tools/sc-listings`, `tool.sc-listings`)
+
+Ported from the old app (plan section 5.8). Two tools with separate permissions, in "Amazon · Listings": Vendor Central (.ca) and Seller Central (US) are separate Amazon accounts. Both pages share one view (`resources/views/tools/listings/_page.blade.php`), one script (`resources/js/tools/listings.js`) and one set of services in `app/Services/AmazonListings/`, parameterised by `ListingChannel`.
+
+- **Table:** every active listing with its latest audit: up to 7 configurable attribute columns, A+ Content, image count and "Our Contribution" (does Amazon's live listing still match our last accepted submission). VC adds brand and manufacturer codes, Replenishment Category, the CDQ grade and Listings Items issues (LI). Search, filter buttons and column sort; listings whose contribution drifted are also listed above the table. VC is keyed by ASIN; SC by SKU, since one ASIN can have several seller SKUs.
+- **Editor:** a title or arrow opens that listing's live attributes from the SP-API. Every attribute Amazon returns is editable; enum fields are dropdowns from the product type schema, and Nutrition Facts has its own section. Submitting runs Amazon's `VALIDATION_PREVIEW`, and only a clean preview is followed by the real PATCH. Every submission is logged in the edit history with Amazon's answer, rejections included (found issue 16, decided 2026-12-06); only accepted ones count toward Our Contribution. Below the form: the last audit's Listing Issues and Restrictions.
+- **Writes:** the listing PATCH (`SpApiClient::patchListing` without preview) refuses while `TOOLS_EXTERNAL_WRITES` is off. The page says so, the preview still runs, and nothing is submitted or logged.
+- **Audit Listings:** 4 SP-API reads per listing (Listings Items, Catalog Items, A+, Restrictions), in batches of 5 with the table updating as it goes. **Export All** (VC) fetches every listing live and downloads one CSV.
+- **Audit columns:** admins only (found issue 9).
+- **Sync Products** (SC): requests Amazon's all-listings report and updates `sc_products`. A SKU missing from a complete report is marked `Removed` and leaves the picker; its history stays (found issue 15). The daily `legacy:import-products` puts the old app's copy back until Phase 1.
+- **Scheduled:** `listings:audit-run` audits every active VC and SC listing daily at 08:30 UTC until cutover, then at 08:00 as in the old app. Both apps share one SP-API rate limit, so this app's run waits for the old app's (decision 2026-12-06; `PlatformImporter::SHIFTED_UNTIL_CUTOVER`, which the platform import keeps).
+- **One-off:** `listings:repair-double-encoded-audited-attributes` repaired audit rows the old app wrote double-encoded. The import brings the repaired rows across.
+- **Settings:** the SP-API vendor and seller settings from step 2 (`SP_API_*`).
+
 ### CDQ Listing Quality Report (`/tools/cdq-report`, `tool.cdq-report`)
 
 Ported from the old app (plan section 5.5). Our own content quality score (0 to 100, deduction based) for every active Vendor Central ASIN. Reads only from Amazon.
@@ -297,7 +311,7 @@ Ported from the old app's Stockout Lost Sales Estimator and renamed (decision D7
 
 ### Shared product lists
 
-`products` (Vendor Central, .ca) and `sc_products` (Seller Central, US) are read-only copies of the old app's tables until Phase 1 rebuilds the catalog (plan section 5, "Shared tables"). `legacy:import-products` mirrors them, IDs included, and runs daily at 00:30 UTC as the "Products Sync From Old App" task.
+`products` (Vendor Central, .ca) and `sc_products` (Seller Central, US) are copies of the old app's tables until Phase 1 rebuilds the catalog (plan section 5, "Shared tables"). `legacy:import-products` mirrors them, IDs included, and runs daily at 00:30 UTC as the "Products Sync From Old App" task. The SC Listings Editor's Sync Products also writes `sc_products`; a SKU it added that the old app has under another ID is removed before the mirror, which then brings the old app's row in.
 
 ## Imports from the old app
 
@@ -431,6 +445,16 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:team-sponso
 ```
 
 `orders`, `order_items` and `team_sponsorship_activity` are copied exactly, IDs included (order items point at their order by ID), in one transaction. The old app wins, so this app's own activity refresh is replaced on each run. Two tables have a second unique key: orders on the Shopify ID, and activity on email and team, compared case-insensitively. A row here that holds a key the old app has under a different ID is removed first, then replaced by the old app's row. The comparison hashes the three tables and the Stats page's figures: totals, orders per month, units per product per month, and the activity sums. It needs to run again at cutover (plan section 6).
+
+### `legacy:import-listings` and `compare:listings`
+
+```bash
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-listings --dry-run
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-listings
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:listings
+```
+
+The eight VC and SC tables are copied exactly, in one transaction: edits, audits and column settings with their IDs (`App\Legacy\ListingsImporter`, through `TableMirror`), and the two attribute catalogs on their `attribute_key`. The old app wins, so audits this app's daily run added are replaced. Edits and audits point at users and products, so run `legacy:import-platform` and `legacy:import-products` first. The comparison hashes all eight tables and each page's figures from the latest audits: listings audited, failed fetches, A+ statuses, contribution matches and drifts, open issues, the last full audit, edits by status and the columns in force. Either app's daily audit (08:00 UTC in the old app, 08:30 here) changes these, so run it right after the import. It needs to run again at cutover, especially for `listing_edits` (plan section 6).
 
 ## One-time commands
 
