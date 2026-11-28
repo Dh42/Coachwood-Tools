@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Cutover\Cutover;
 use App\Legacy\MirrorImports;
 use Illuminate\Console\Command;
 
@@ -18,7 +19,15 @@ class LegacyImportProductsCommand extends Command
 
     public function handle(): int
     {
-        $report = MirrorImports::run(MirrorImports::PRODUCTS, (bool) $this->option('dry-run'), MirrorImports::PRODUCTS_UNIQUE_KEYS);
+        // Once the listings tools have moved, SC's Sync Products here owns
+        // sc_products, and the old app's copy goes stale (decision 2026-12-07).
+        $tables = MirrorImports::PRODUCTS;
+        if (Cutover::hasMoved('listings')) {
+            unset($tables['sc_products']);
+            $this->line('sc_products is skipped: the listings tools have moved, so Sync Products here keeps it.');
+        }
+
+        $report = MirrorImports::run($tables, (bool) $this->option('dry-run'), array_intersect_key(MirrorImports::PRODUCTS_UNIQUE_KEYS, $tables));
 
         $this->table(['Table', 'Rows in old app', 'New here', 'Updated', 'Removed here'], collect($report)->map(
             fn (array $counts, string $table) => [$table, $counts['read'], $counts['new'], $counts['updated'], $counts['removed']],

@@ -17,7 +17,7 @@
     $noun = $isVendor ? __('ASIN') : __('SKU');
     $selectedKey = $isVendor ? $selectedAsin : $selectedSku;
     $isAdmin = auth()->user()?->hasRole('admin') ?? false;
-    $writesEnabled = ExternalWrites::allowed();
+    $writesEnabled = ExternalWrites::allowed('listings');
     $contributionMismatches = $products->filter(fn ($product) => $product->latestListingAudit && $product->latestListingAudit->contribution_mismatch_count > 0);
 
     $tourSteps = array_values(array_filter([

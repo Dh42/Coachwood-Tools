@@ -27,13 +27,14 @@ use RuntimeException;
  */
 class KlaviyoClient
 {
-    public function __construct(protected string $brand) {}
+    /** @param  ?string  $cutoverGroup  the calling tool's cutover group, for ExternalWrites */
+    public function __construct(protected string $brand, protected ?string $cutoverGroup = null) {}
 
     /** @return array{status: ?int, success: bool, errors: ?array} */
     public function sendEvent(string $metricName, string $email, array $properties = [], ?string $uniqueId = null): array
     {
         $config = $this->config();
-        if (! ExternalWrites::allowed()) {
+        if (! ExternalWrites::allowed($this->cutoverGroup)) {
             return ['status' => null, 'success' => false, 'errors' => [(new ExternalWritesDisabled("Klaviyo event \"{$metricName}\""))->getMessage()]];
         }
         if ($config === null) {

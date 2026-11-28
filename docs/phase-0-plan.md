@@ -23,7 +23,7 @@ Sources: `docs/build-spec.md`, `docs/decisions.md`, the old code at `~/PhpstormP
 | 11 | VC and SC Listings Editors | Amazon listing submissions | 101 (all ported; 1 assertion changed for the new markup, 2 setups turn writes on; see the step 11 context entry) |
 | 12 | VC Image Manager | Amazon image submissions | 24 (all ported; 1 setup turns writes on; see the step 12 context entry) |
 | 13 | ~~Combined Shipping Refund~~ Dropped (decision 2026-12-07): it moves to the customer service app | – | – |
-| 14 | Cutover rehearsal: final sync, comparisons, gate | No | – |
+| 14 | Cutover rehearsal: `legacy:sync` on the server (timed), every comparison, the per-group move and undo (section 6), the gate | No | – |
 
 About 694 of the 1,296 old tests carry over. The rest cover tools rebuilt in later phases, or the Zendesk sidebar, which is dropped. Counts come from reading the test files and are approximate until the tests run in the new repo.
 
@@ -222,25 +222,40 @@ R = reads, W = writes. "Sync at cutover" names what the final sync must bring ac
 
 ## 6. Shadow running, sync and cutover
 
-- **Before cutover.** The new app runs its scheduled pulls beside the old app, as agreed. No Shopify webhooks point at it (decision 2026-11-25), so stock-out snapshots come only from the 15-minute sweep, and ASP orders arrive through the daily catch-up. That is enough to prove the collectors work.
-- **Sync.** `legacy:sync` re-runs every tool's import, in the step order. It is safe to run any number of times.
-  - **The old app wins.** For tables both apps write (App Stats snapshots, ASP, Lost Sales history, CDQ, reviews, Walmart), the final sync replaces the new app's shadow rows with the old app's rows, in batched deletes. Shadow data exists only to prove the collectors work. This avoids duplicate chart points from two collectors.
-  - **More than the two Team tools need syncing.** Listing edits and image edits made in the old app also need it, which is why every tool has a "sync at cutover" row.
-  - **Combined Shipping Refund stays in the old app** until the customer service app has it (decision 2026-12-07). Step 1 below puts the whole old app into maintenance mode, and step 4 moves its hostname, so either the customer service app takes the tool over first, or the old app keeps running for that one tool on another hostname. To decide before cutover.
-- **Cutover, proposed as one evening.**
-  1. Put the old app in maintenance mode, and disable its scheduled tasks.
-  2. Run `legacy:sync`.
-  3. Set `TOOLS_EXTERNAL_WRITES=true` and enable `asp:backfill` in the new app.
-  4. Point `tools.biosteel.com` at the new app as a domain alias.
-  5. Register the Shopify webhooks at `tools.coachwoodgroup.com`, check that deliveries arrive, then remove the old subscriptions.
-  6. Open access to staff.
+Rewritten 2026-12-07 (decision that day): tools move from the old app one group at a time, as build spec section 14.3 describes, and the old app stays live for everything not rebuilt yet. The first version moved everything in one evening and put the whole old app into maintenance mode. That would have taken offline the twelve tools rebuilt in Phases 2 to 4 (Price Monitor, the PO tools, the forecasts, NRP, PPM, Deal Funding, Geo Sales, Sales Trends, VC Birdseye), and Combined Shipping Refund, which moves to the customer service app.
 
-  Making the old hostname an alias means three things keep working with nothing to re-register:
-  - the Shopify webhooks, which point at `tools.biosteel.com/webhooks/...`
-  - the image URLs already given to Amazon, at `tools.biosteel.com/storage/...`
+- **Before a group moves.** This app runs its scheduled pulls beside the old app, as agreed. No Shopify webhooks point at it (decision 2026-11-25), so stock-out snapshots come only from the 15-minute sweep, and ASP orders arrive through the daily catch-up. That is enough to prove the collectors work. Its external writes are off.
+- **Cutover groups** (`config/cutover.php`, `cutover:status`). Tools that share tables or writes move together, in step order:
+  1. BioSteel App Stats
+  2. Walmart US Listing Auditor
+  3. US Product Reviews
+  4. BioSteel Shopify Lost Sales
+  5. CDQ Listing Quality Report
+  6. the ASP Trackers
+  7. Team Sponsorship with its Stats
+  8. the VC and SC Listings Editors with the VC Image Manager, which share `listing_edits` and `sc_products`
+
+  Any order works, but a group's tools always move together.
+- **Sync.** `legacy:sync` re-runs the shared imports (platform, products, VC traffic), then each group's imports and comparisons, in step order. It skips groups that have moved and prints each step's time. It is safe to run any number of times.
+  - **The old app wins** while a group is still there. For tables both apps write (App Stats snapshots, ASP, Lost Sales history, CDQ, reviews, Walmart, listing audits), the import replaces this app's shadow rows with the old app's. Shadow data exists only to prove the collectors work, and this avoids duplicate chart points from two collectors.
+  - **This app wins once a group has moved.** Its imports refuse to run, since they would overwrite its data. The platform import stops copying its tools' and tasks' on/off settings, because the old app switches those off at the move.
+  - **Shared tables.** `products` stays the old app's (the Price Monitor keeps it) until Phase 1. `sc_products` becomes this app's when the listings group moves: SC's Sync Products keeps it here, and `legacy:import-products` stops copying it.
+- **Moving one group** (`cutover:move <group>`, on the server):
+  1. In the old app, switch off the group's scheduled tasks (Admin > Scheduler) and tools (Admin > Tools), so nobody uses the old copy.
+  2. Run `cutover:move <group>`. It runs the group's imports one last time and its comparisons, and records the move only if every comparison matches.
+  3. The group's external writes are on from then on (`ExternalWrites::allowed('<group>')`), without the global `TOOLS_EXTERNAL_WRITES`, and its imports stop.
+  4. Check its scheduled tasks here (the command lists them), and follow its own next steps, which the command also lists:
+     - ASP and Lost Sales: register their Shopify webhooks here, check that deliveries arrive, then remove the old subscriptions.
+     - ASP: enable `asp:backfill` only if needed.
+     - Listings: set `listings:audit-run` back to 08:00.
+     - Writing tools: one real change, checked in Shopify or Amazon.
+  5. Lesley signs the group off.
+- **Rollback, per group:** `cutover:undo <group>`, then switch its tools and tasks back on in the old app, and point any webhooks back. Anything written here since the move isn't in the old app.
+- **The old hostname** stays on the old app until the final cutover (build spec Phase 5), once every remaining tool is rebuilt here or has moved to the customer service app. Then `tools.biosteel.com` becomes an alias of this app (decision 2026-11-25), so these keep working with nothing to re-register:
+  - the image URLs already given to Amazon, at `tools.biosteel.com/storage/...` (copy the image files first; README)
   - old bookmarks
 
-  Rollback is reversing step 4 and taking the old app out of maintenance.
+  Webhooks will already point at `tools.coachwoodgroup.com` by then.
 
 ## 7. Phase 0 gate
 

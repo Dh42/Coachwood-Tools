@@ -18,7 +18,7 @@
 <div id="image-grid" class="flex flex-col gap-4" data-asin="{{ $product->asin }}">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h3 class="card-title">{{ $product->title }} <span class="mono muted text-xs">{{ $product->asin }} · {{ $product->sku }}</span></h3>
-        @unless (ExternalWrites::allowed())
+        @unless (ExternalWrites::allowed('listings'))
             <p class="muted text-sm">{{ __('Submissions are off until cutover: Amazon validates each change, and nothing is sent.') }}</p>
         @endunless
     </div>

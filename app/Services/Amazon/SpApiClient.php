@@ -127,7 +127,7 @@ class SpApiClient
         if ($preview) {
             $query['mode'] = 'VALIDATION_PREVIEW';
         } else {
-            ExternalWrites::ensureAllowed('Amazon listing PATCH');
+            ExternalWrites::ensureAllowed('Amazon listing PATCH', 'listings');
         }
 
         return $this->request('PATCH', '/listings/2021-08-01/items/'.$channel->identityCode().'/'.rawurlencode($sku), $query, [

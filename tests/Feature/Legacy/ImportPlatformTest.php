@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Legacy;
 
+use App\Cutover\Cutover;
 use App\Models\GoogleWorkspaceDomain;
 use App\Models\ScheduledTask;
 use App\Models\Team;
@@ -432,6 +433,27 @@ class ImportPlatformTest extends TestCase
         $task = ScheduledTask::where('command', 'listings:audit-run')->sole();
         $this->assertSame('30 8 * * *', $task->cron_expression);
         $this->assertTrue($task->enabled);
+    }
+
+    /** Decision 2026-12-07: the old app switches a tool and its tasks off when it moves here. */
+    public function test_it_leaves_a_moved_groups_tools_and_tasks_alone(): void
+    {
+        DB::connection('legacy')->table('tools')->insert([
+            ['name' => 'VC', 'slug' => 'vc-listings', 'url' => '/tools/vc-listings', 'active' => false, 'sort_order' => 4],
+            ['name' => 'CDQ', 'slug' => 'cdq-report', 'url' => '/tools/cdq-report', 'active' => false, 'sort_order' => 9],
+        ]);
+        DB::connection('legacy')->table('scheduled_tasks')->insert([
+            ['name' => 'Audit', 'command' => 'listings:audit-run', 'cron_expression' => '0 8 * * *', 'timezone' => null, 'enabled' => false],
+            ['name' => 'Score', 'command' => 'cdq:score', 'cron_expression' => '45 4 * * 0', 'timezone' => null, 'enabled' => false],
+        ]);
+        Cutover::markMoved('listings');
+
+        $this->artisan('legacy:import-platform')->assertSuccessful();
+
+        $this->assertTrue(Tool::where('slug', 'vc-listings')->sole()->active);
+        $this->assertTrue(ScheduledTask::where('command', 'listings:audit-run')->sole()->enabled);
+        $this->assertFalse(Tool::where('slug', 'cdq-report')->sole()->active, 'a group still in the old app copies as before');
+        $this->assertFalse(ScheduledTask::where('command', 'cdq:score')->sole()->enabled);
     }
 
     public function test_the_snapshot_clean_up_runs_wherever_the_sweep_runs(): void

@@ -56,7 +56,7 @@ class ImageManagerController extends Controller
         }
 
         return view('tools.image-manager.index', [
-            'writesEnabled' => ExternalWrites::allowed(),
+            'writesEnabled' => ExternalWrites::allowed('listings'),
             'products' => $products,
             'selectedAsin' => $selectedAsin,
             'gridData' => $gridData,
@@ -185,7 +185,7 @@ class ImageManagerController extends Controller
 
         // Plan section 2, rule 3: until cutover only the preview runs. Nothing
         // is submitted or logged, and the uploaded file isn't kept.
-        if (! ExternalWrites::allowed()) {
+        if (! ExternalWrites::allowed('listings')) {
             $discard();
 
             return redirect()->route('tools.vc-image-manager.index', ['asin' => $asin])->with('warning', __(

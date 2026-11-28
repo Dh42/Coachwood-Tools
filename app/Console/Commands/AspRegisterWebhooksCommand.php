@@ -71,7 +71,7 @@ class AspRegisterWebhooksCommand extends Command
 
         $failed = false;
         // Not run in this app until cutover (plan section 5.6).
-        if (! ExternalWrites::allowed()) {
+        if (! ExternalWrites::allowed('asp-tracker')) {
             $this->error((new ExternalWritesDisabled('Shopify webhookSubscriptionCreate'))->getMessage());
 
             return self::FAILURE;

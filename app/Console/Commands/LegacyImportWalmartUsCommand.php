@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StopsAfterCutover;
 use App\Legacy\WalmartUsImporter;
 use Illuminate\Console\Command;
 
@@ -11,6 +12,8 @@ use Illuminate\Console\Command;
  */
 class LegacyImportWalmartUsCommand extends Command
 {
+    use StopsAfterCutover;
+
     protected $signature = 'legacy:import-walmart-us
         {--dry-run : Do the whole import, report it, then roll it back}';
 
@@ -18,6 +21,10 @@ class LegacyImportWalmartUsCommand extends Command
 
     public function handle(): int
     {
+        if ($this->hasMovedFromOldApp('walmart-us')) {
+            return self::FAILURE;
+        }
+
         $report = WalmartUsImporter::make()->run((bool) $this->option('dry-run'));
 
         $this->table(['Table', 'Rows in old app', 'New here', 'Updated', 'Removed here'], collect($report)->map(

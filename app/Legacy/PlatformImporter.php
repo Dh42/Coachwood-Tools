@@ -2,6 +2,7 @@
 
 namespace App\Legacy;
 
+use App\Cutover\Cutover;
 use App\Models\User;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Collection;
@@ -37,6 +38,8 @@ use Spatie\Permission\PermissionRegistrar;
  *   ported yet are not created, `asp:backfill` always stays disabled until
  *   cutover (plan section 2, rule 6), and the listings audit keeps its
  *   later time here (SHIFTED_UNTIL_CUTOVER). Run history is not copied
+ * - tools and tasks of a cutover group that has moved are left alone: the
+ *   old app switches them off when they move (decision 2026-12-07)
  * - renamed tools (decision D7): the old slug's order, active flag and
  *   `tool.<slug>` grants move to the new slug. The old permission is not
  *   created here
@@ -383,6 +386,11 @@ final class PlatformImporter
         $updated = 0;
 
         foreach ($old as $row) {
+            // A group that has moved runs its tasks here now; the old app's
+            // (switched off at the move) no longer apply (decision 2026-12-07).
+            if (($group = Cutover::groupForTask($row->command)) !== null && Cutover::hasMoved($group)) {
+                continue;
+            }
             $enabled = isset(self::ENABLED_WITH[$row->command]) ? (bool) $oldEnabled->get(self::ENABLED_WITH[$row->command], false) : (bool) $row->enabled;
             $values = [
                 // Matched on the command's name: the ASP backfill is "asp:backfill CP" and "asp:backfill BS".
@@ -407,7 +415,12 @@ final class PlatformImporter
         $updated = 0;
 
         foreach ($old as $row) {
-            $updated += $this->db->table('tools')->where('slug', self::RENAMED_TOOLS[$row->slug] ?? $row->slug)
+            $slug = self::RENAMED_TOOLS[$row->slug] ?? $row->slug;
+            // The old app switches a tool off when it moves here; that must not switch it off here too.
+            if (($group = Cutover::groupForTool($slug)) !== null && Cutover::hasMoved($group)) {
+                continue;
+            }
+            $updated += $this->db->table('tools')->where('slug', $slug)
                 ->where(fn ($query) => $query->where('active', '!=', (bool) $row->active)->orWhere('sort_order', '!=', (int) $row->sort_order))
                 ->update(['active' => (bool) $row->active, 'sort_order' => (int) $row->sort_order, 'updated_at' => now()]);
         }

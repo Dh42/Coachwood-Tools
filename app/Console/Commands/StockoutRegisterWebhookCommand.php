@@ -71,7 +71,7 @@ class StockoutRegisterWebhookCommand extends Command
 
         // Not run in this app until cutover (plan section 5.4): no webhook
         // points here during shadow running.
-        if (! ExternalWrites::allowed()) {
+        if (! ExternalWrites::allowed('lost-sales')) {
             $this->error((new ExternalWritesDisabled('Shopify webhookSubscriptionCreate'))->getMessage());
 
             return self::FAILURE;

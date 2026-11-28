@@ -7,6 +7,67 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-07: per-group cutover, and step 14 (cutover rehearsal)
+
+### What changed
+- **Decision (Lesley):** tools move from the old app one group at a time (build spec 14.3), and the old app stays live for the tools not rebuilt yet. The old plan's one-evening cutover would have taken twelve tools (rebuilt in Phases 2 to 4) and Combined Shipping Refund offline. Plan section 6 is rewritten; `decisions.md` records it.
+- **Cutover groups:** `config/cutover.php` defines eight groups, each with its tools, imports, comparisons, task prefixes and after-move steps. `App\Cutover\Cutover` reads them and the new `tool_cutovers` table, which records which groups have moved. A database that can't be read counts as nothing moved.
+- **Writes per group:** `ExternalWrites::allowed($group)` is true once that group has moved, or everywhere with `TOOLS_EXTERNAL_WRITES`. Every write names its group:
+  - Team Sponsorship's draft order and Klaviyo event (`KlaviyoClient` takes the caller's group)
+  - the listing PATCH (listings)
+  - ASP's bulk operation and webhook registration
+  - Lost Sales' webhook registration
+- **Imports stop for moved groups:**
+  - the nine per-tool `legacy:import-*` commands refuse (`StopsAfterCutover`), since they would overwrite this app's data
+  - `legacy:import-platform` leaves a moved group's tool and task settings alone, because the old app switches them off at the move
+  - `legacy:import-products` stops copying `sc_products` once the listings group has moved
+- **Commands:**
+  - `cutover:status`
+  - `cutover:move <group>`: asks first; runs the group's imports one last time and its comparisons; records the move only if they all match; then lists its tasks here and its next steps
+  - `cutover:undo <group>`
+  - `legacy:sync`: shared imports, then each group still in the old app (imports, then comparisons), skipping moved groups, with each step's time; `--dry-run` and `--group`
+- **README:** "Moving tools from the old app", and the external writes paragraph.
+
+### Test status
+- 870 pass on SQLite and on MariaDB 10.11 (a scratch container, since removed), and on a clean-copy CI replay. Pint is clean.
+- **New:** `CutoverTest` (10) and one in `ImportPlatformTest`. No old test changed.
+- With no database at all, `cutover:status` lists every group as still in the old app (fails closed).
+
+### Verified
+- **Full sync rehearsal (verified on the local copy of the old database, into a fresh scratch MariaDB):** `legacy:sync` ran every import and every comparison, and all matched, in 801.5 s (13.4 min). The main costs:
+
+  | Step | Seconds |
+  | --- | --- |
+  | ASP import | 570.5 |
+  | ASP comparison | 129.9 |
+  | CDQ import | 34.5 |
+  | Lost Sales import | 24.4 |
+  | US Product Reviews import | 11.8 |
+  | App Stats import | 10.7 |
+  | Listings import | 9.2 |
+
+  Everything else took under 3 s each. The server will differ; its time is the one the gate records.
+- **Move and undo (verified on the same scratch copy):**
+  - `cutover:move team-sponsorship --force` ran the final import and comparison (matched), recorded the move, and listed `team-sponsorship:refresh-activity` (enabled) and the next step. It took 1.1 s.
+  - Afterwards `legacy:import-team-sponsorship` refused, and `legacy:sync --group=team-sponsorship` skipped the group.
+  - `cutover:undo` put it back.
+
+### Phase 0 gate (plan section 7)
+1. Every carried-over test passes on SQLite and MariaDB: yes, as of this entry.
+2. Every comparison matches after an import: yes, all of them in one `legacy:sync` on the local copy (above). It still needs a run on the server.
+3. Every write path sends nothing while writes are off: shown by tests. The server preview runs are still to do: Team Sponsorship's Create Order, a listing Validate, an Image Manager upload.
+4. Probe results recorded and reviewed: done in step 2.
+5. `legacy:sync` rehearsed on the server, with its run time: to do (the local time is above).
+6. Lesley signs off.
+
+### Next step
+On the server, after this deploys:
+- `cutover:status`
+- `legacy:sync --dry-run`, then `legacy:sync`, keeping the summary table for the gate
+- the three preview checks
+
+Then Lesley decides which group moves first. Team Sponsorship or App Stats are the smallest; the listings group writes to Amazon.
+
 ## 2026-12-07: Combined Shipping Refund dropped from Phase 0
 
 ### What changed

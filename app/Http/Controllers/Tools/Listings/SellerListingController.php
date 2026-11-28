@@ -158,7 +158,7 @@ class SellerListingController extends Controller
 
         // Plan section 2, rule 3: until cutover only the preview runs. Nothing
         // is submitted, so nothing is logged either.
-        if (! ExternalWrites::allowed()) {
+        if (! ExternalWrites::allowed('listings')) {
             return redirect()->route('tools.sc-listings.index', ['sku' => $sku])->with('warning', __(
                 "Amazon's validation preview accepted :n change(s) (:attributes). Submissions are off in this app until cutover, so nothing was sent to Amazon and nothing was logged. Make this change in the old app.",
                 ['n' => count($changes), 'attributes' => implode(', ', array_column($changes, 'attr'))],

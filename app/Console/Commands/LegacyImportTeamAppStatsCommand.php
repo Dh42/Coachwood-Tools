@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StopsAfterCutover;
 use App\Legacy\TeamAppStatsImporter;
 use Illuminate\Console\Command;
 
@@ -11,6 +12,8 @@ use Illuminate\Console\Command;
  */
 class LegacyImportTeamAppStatsCommand extends Command
 {
+    use StopsAfterCutover;
+
     protected $signature = 'legacy:import-team-app-stats
         {--dry-run : Do the whole import, report it, then roll it back}';
 
@@ -18,6 +21,10 @@ class LegacyImportTeamAppStatsCommand extends Command
 
     public function handle(): int
     {
+        if ($this->hasMovedFromOldApp('team-app-stats')) {
+            return self::FAILURE;
+        }
+
         $report = TeamAppStatsImporter::make()->run((bool) $this->option('dry-run'));
 
         $this->table(['Table', 'Rows in old app', 'New here', 'Updated', 'Removed here'], collect($report)->map(

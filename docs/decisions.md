@@ -2,12 +2,19 @@
 
 Each entry records a decision that replaces or adds to a default in `docs/build-spec.md`. Where this file and the spec differ, this file wins. Newest first.
 
+## 2026-12-07: tools move one group at a time
+
+| Topic | Decision | Replaces |
+| --- | --- | --- |
+| Cutover | Tools move from the old app one group at a time (build spec section 14.3), with `cutover:move` and `cutover:undo`. The old app stays live at `tools.biosteel.com` for the tools not rebuilt yet (Phases 2 to 4) and for Combined Shipping Refund. The hostname moves at the final cutover. Plan section 6 is rewritten to match | Plan section 6: one-evening cutover, old app in maintenance mode, hostname moved at Phase 0 |
+| External writes | Allowed per group once it has moved, as well as everywhere by `TOOLS_EXTERNAL_WRITES` | One global switch |
+
 ## 2026-12-07: Combined Shipping Refund leaves this app
 
 | Topic | Decision | Replaces |
 | --- | --- | --- |
 | Combined Shipping Refund | Not ported. It belongs in the customer service app and will be rebuilt there. Phase 0 step 13 is dropped, and its found issues (2 and 3) go with it. The shared code this app already has stays: the Shopify GraphQL client and brand settings (ASP Tracker) and the Klaviyo client (Team Sponsorship) | Plan step 13 and section 5.10; build spec section 4 (`/tools/combined-shipping`) |
-| Until then | Staff keep using it in the old app. The old app can't be switched off, or `tools.biosteel.com` moved here, while it's the only place the tool runs; see the plan's section 6 | |
+| Until then | Staff keep using it in the old app, which stays live for it and the tools not rebuilt yet (entry above) | |
 
 ## 2026-12-06: Listings Editors
 

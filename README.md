@@ -34,7 +34,7 @@ The `legacy` connection (`config/database.php`) reads the old app's database, `t
 
 ### External writes
 
-`TOOLS_EXTERNAL_WRITES` switches every write to an outside system (Shopify, Klaviyo, Amazon). It stays `false` everywhere until cutover. Code checks it only through `App\Support\ExternalWrites`. Tests force it off.
+Every write to an outside system (Shopify, Klaviyo, Amazon) is checked through `App\Support\ExternalWrites`, naming the cutover group it belongs to. It is allowed once that group has moved from the old app (`cutover:move`, see "Moving tools from the old app"). `TOOLS_EXTERNAL_WRITES=true` allows every write; it stays `false` until the final cutover. Tests force it off, and no group has moved in tests unless one says so.
 
 ## Tests
 
@@ -482,6 +482,29 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:image-manag
 ```bash
 sudo rsync -a --chown="$(stat -c %U:%G .)" /var/www/vhosts/tools.biosteel.com/httpdocs/storage/app/public/vc-image-manager/ storage/app/public/vc-image-manager/
 ```
+
+## Moving tools from the old app
+
+Tools move one group at a time (plan section 6, decision 2026-12-07). The old app stays live at `tools.biosteel.com` for everything not rebuilt yet. Groups are defined in `config/cutover.php`.
+
+```bash
+PHP="sudo -u $(stat -c %U .) /opt/plesk/php/8.4/bin/php artisan"
+$PHP cutover:status            # each group, and whether it runs in the old app or here
+$PHP legacy:sync --dry-run     # every import as a dry run, timed
+$PHP legacy:sync               # every import, then every comparison, skipping moved groups
+$PHP cutover:move listings     # one group: final import, comparison, then it runs here
+$PHP cutover:undo listings     # move it back
+```
+
+**Moving a group:** first switch its scheduled tasks and tools off in the old app (Admin > Scheduler, Admin > Tools). Then `cutover:move <group>` runs its imports one last time and its comparisons, and records the move only if they all match. From then on:
+- its external writes are allowed
+- its `legacy:import-*` commands refuse to run, since this app owns its data
+- `legacy:import-platform` leaves its tools' and tasks' settings alone
+- for the listings group, `legacy:import-products` stops copying `sc_products`
+
+The command lists the group's tasks here and its next steps (webhooks, schedule changes, one real test change).
+
+**Rolling back:** `cutover:undo <group>`, then switch it back on in the old app and point any webhooks back. Anything written here since the move isn't in the old app.
 
 ## One-time commands
 

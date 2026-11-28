@@ -72,7 +72,7 @@ class ShopifyClient
      */
     public function createSponsorshipDraftOrder(string $email, string $teamName, int $bottleQuantity, ?string $sport = null): array
     {
-        ExternalWrites::ensureAllowed('Shopify draft order and invoice email');
+        ExternalWrites::ensureAllowed('Shopify draft order and invoice email', 'team-sponsorship');
 
         $lineItemConfigs = $this->sponsorshipLineItemConfigs($bottleQuantity, $sport);
 

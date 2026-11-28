@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StopsAfterCutover;
 use App\Legacy\TeamSponsorshipImporter;
 use Illuminate\Console\Command;
 
@@ -12,6 +13,8 @@ use Illuminate\Console\Command;
  */
 class LegacyImportTeamSponsorshipCommand extends Command
 {
+    use StopsAfterCutover;
+
     protected $signature = 'legacy:import-team-sponsorship
         {--dry-run : Do the whole import, report it, then roll it back}';
 
@@ -19,6 +22,10 @@ class LegacyImportTeamSponsorshipCommand extends Command
 
     public function handle(): int
     {
+        if ($this->hasMovedFromOldApp('team-sponsorship')) {
+            return self::FAILURE;
+        }
+
         $report = TeamSponsorshipImporter::run((bool) $this->option('dry-run'));
 
         $this->table(['Table', 'Rows in old app', 'New here', 'Updated', 'Removed here'], collect($report)->map(

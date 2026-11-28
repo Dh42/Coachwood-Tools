@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StopsAfterCutover;
 use App\Legacy\MirrorImports;
 use Illuminate\Console\Command;
 
@@ -11,6 +12,8 @@ use Illuminate\Console\Command;
  */
 class LegacyImportUsProductReviewsCommand extends Command
 {
+    use StopsAfterCutover;
+
     protected $signature = 'legacy:import-us-product-reviews
         {--dry-run : Do the whole import, report it, then roll it back}';
 
@@ -18,6 +21,10 @@ class LegacyImportUsProductReviewsCommand extends Command
 
     public function handle(): int
     {
+        if ($this->hasMovedFromOldApp('us-product-reviews')) {
+            return self::FAILURE;
+        }
+
         $report = MirrorImports::run(MirrorImports::US_PRODUCT_REVIEWS, (bool) $this->option('dry-run'));
 
         $this->table(['Table', 'Rows in old app', 'New here', 'Updated', 'Removed here'], collect($report)->map(

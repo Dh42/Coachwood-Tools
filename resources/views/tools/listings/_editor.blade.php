@@ -217,8 +217,8 @@
     @endforeach
 
     <div class="form-actions">
-        <button type="submit" class="btn btn-primary">{{ ExternalWrites::allowed() ? __('Validate & submit') : __('Validate only') }}</button>
-        @unless (ExternalWrites::allowed())
+        <button type="submit" class="btn btn-primary">{{ ExternalWrites::allowed('listings') ? __('Validate & submit') : __('Validate only') }}</button>
+        @unless (ExternalWrites::allowed('listings'))
             <p class="muted text-sm">{{ __("Submissions are off in this app until cutover: Amazon's validation preview runs, and nothing is sent.") }}</p>
         @endunless
     </div>

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StopsAfterCutover;
 use App\Legacy\LostSalesImporter;
 use Illuminate\Console\Command;
 
@@ -11,6 +12,8 @@ use Illuminate\Console\Command;
  */
 class LegacyImportLostSalesCommand extends Command
 {
+    use StopsAfterCutover;
+
     protected $signature = 'legacy:import-lost-sales
         {--dry-run : Do the whole import, report it, then roll it back}';
 
@@ -18,6 +21,10 @@ class LegacyImportLostSalesCommand extends Command
 
     public function handle(): int
     {
+        if ($this->hasMovedFromOldApp('lost-sales')) {
+            return self::FAILURE;
+        }
+
         $report = LostSalesImporter::make()->run((bool) $this->option('dry-run'));
 
         $this->table(['Table', 'Rows in old app', 'New here', 'Updated', 'Removed here'], collect($report)->map(

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StopsAfterCutover;
 use App\Legacy\AspTrackerImporter;
 use Illuminate\Console\Command;
 
@@ -12,6 +13,8 @@ use Illuminate\Console\Command;
  */
 class LegacyImportAspTrackerCommand extends Command
 {
+    use StopsAfterCutover;
+
     protected $signature = 'legacy:import-asp-tracker
         {--dry-run : Read and count everything, write nothing}';
 
@@ -19,6 +22,10 @@ class LegacyImportAspTrackerCommand extends Command
 
     public function handle(): int
     {
+        if ($this->hasMovedFromOldApp('asp-tracker')) {
+            return self::FAILURE;
+        }
+
         $dryRun = (bool) $this->option('dry-run');
         $shown = 0;
         $report = AspTrackerImporter::make()->run($dryRun, function (int $lines) use (&$shown) {

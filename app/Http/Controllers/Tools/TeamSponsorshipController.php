@@ -29,7 +29,7 @@ class TeamSponsorshipController extends Controller
         [$inventory, $inventoryError] = $this->inventorySnapshot();
 
         return view('tools.team-sponsorship.index', [
-            'writesEnabled' => ExternalWrites::allowed(),
+            'writesEnabled' => ExternalWrites::allowed('team-sponsorship'),
             'inventory' => $inventory,
             'inventoryError' => $inventoryError,
             'teams' => null,
@@ -245,7 +245,7 @@ class TeamSponsorshipController extends Controller
 
         // Plan section 2, rule 3: with writes off, say what would have been
         // sent and send nothing (ShopifyClient refuses too).
-        if (! ExternalWrites::allowed()) {
+        if (! ExternalWrites::allowed('team-sponsorship')) {
             return response()->json([
                 'success' => false,
                 'writesDisabled' => true,
@@ -291,7 +291,7 @@ class TeamSponsorshipController extends Controller
 
         // Fires after the order is already fully created — never blocks or
         // fails this response if Klaviyo is unreachable or misconfigured.
-        (new KlaviyoSponsorshipNotifier(new KlaviyoClient('BS')))
+        (new KlaviyoSponsorshipNotifier(new KlaviyoClient('BS', 'team-sponsorship')))
             ->notifyClaimed($validated['email'], $validated['teamName'], $validated['sport'] ?? null, $result);
 
         return response()->json([

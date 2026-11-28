@@ -105,7 +105,7 @@ class BackfillService
     {
         // A bulk operation is a Shopify write, and only one can run per
         // store: the old app's runs until cutover (plan section 5.6).
-        if (! ExternalWrites::allowed()) {
+        if (! ExternalWrites::allowed('asp-tracker')) {
             return ['state' => 'failed', 'message' => (new ExternalWritesDisabled('Shopify bulkOperationRunQuery'))->getMessage(), 'log' => null];
         }
 

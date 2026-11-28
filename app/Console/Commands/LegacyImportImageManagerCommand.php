@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StopsAfterCutover;
 use App\Legacy\MirrorImports;
 use Illuminate\Console\Command;
 
@@ -13,6 +14,8 @@ use Illuminate\Console\Command;
  */
 class LegacyImportImageManagerCommand extends Command
 {
+    use StopsAfterCutover;
+
     protected $signature = 'legacy:import-image-manager
         {--dry-run : Do the whole import, report it, then roll it back}';
 
@@ -20,6 +23,10 @@ class LegacyImportImageManagerCommand extends Command
 
     public function handle(): int
     {
+        if ($this->hasMovedFromOldApp('listings')) {
+            return self::FAILURE;
+        }
+
         $report = MirrorImports::run(MirrorImports::IMAGE_MANAGER, (bool) $this->option('dry-run'));
 
         $this->table(['Table', 'Rows in old app', 'New here', 'Updated', 'Removed here'], collect($report)->map(
