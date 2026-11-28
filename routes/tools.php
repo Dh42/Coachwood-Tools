@@ -3,6 +3,7 @@
 use App\Http\Controllers\Tools\AspTrackerController;
 use App\Http\Controllers\Tools\CdqReportController;
 use App\Http\Controllers\Tools\FeedbackController;
+use App\Http\Controllers\Tools\ImageManagerController;
 use App\Http\Controllers\Tools\Listings\SellerListingController;
 use App\Http\Controllers\Tools\Listings\VendorListingController;
 use App\Http\Controllers\Tools\StockoutController;
@@ -114,4 +115,15 @@ Route::middleware(['auth', 'permission:tool.sc-listings'])
         Route::post('/audit/run', [SellerListingController::class, 'auditRun'])->name('audit.run');
         Route::post('/audit/batch', [SellerListingController::class, 'auditBatch'])->name('audit.batch');
         Route::post('/audit/config', [SellerListingController::class, 'auditConfig'])->name('audit.config');
+    });
+
+Route::middleware(['auth', 'permission:tool.vc-image-manager'])
+    ->prefix('tools/vc-image-manager')
+    ->name('tools.vc-image-manager.')
+    ->group(function () {
+        Route::get('/', [ImageManagerController::class, 'index'])->name('index');
+        Route::post('/upload', [ImageManagerController::class, 'upload'])->name('upload');
+        Route::post('/remove', [ImageManagerController::class, 'remove'])->name('remove');
+        Route::post('/audit/run', [ImageManagerController::class, 'auditRun'])->name('audit.run');
+        Route::post('/audit/batch', [ImageManagerController::class, 'auditBatch'])->name('audit.batch');
     });

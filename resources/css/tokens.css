@@ -15,6 +15,9 @@
  */
 
 :root {
+    /* Product photos are shot on white, so they sit on white in every theme (VC Image Manager). */
+    --image-backdrop: #ffffff;
+
     /* Type */
     --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;

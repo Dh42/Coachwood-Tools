@@ -73,6 +73,15 @@ final class MirrorImports
         'sc_listing_audit' => ['id', 'product_id', 'has_serving_quantity', 'has_energy_content', 'has_total_fat', 'has_total_carbohydrate', 'has_protein', 'bullet_point_count', 'has_regulatory_compliance', 'brand_code', 'manufacturer_code', 'replenishment_category', 'aplus_status', 'image_count', 'contribution_mismatch_count', 'contribution_mismatch_attrs', 'audited_attributes', 'listing_issues', 'listing_restrictions', 'fetch_error', 'checked_at'],
     ];
 
+    /**
+     * The VC Image Manager (plan section 5.9): its audits, IDs preserved, and
+     * the old app wins. Its submissions are in `listing_edits`, which
+     * `legacy:import-listings` copies.
+     */
+    public const IMAGE_MANAGER = [
+        'image_audits' => ['id', 'product_id', 'unattributed_variants', 'unattributed_count', 'not_live_variants', 'not_live_count', 'fetch_error', 'checked_at'],
+    ];
+
     /** @var array<string, list<string>> keyed by `attribute_key` */
     public const LISTINGS_CATALOGS = [
         'listing_audit_attribute_catalog' => ['attribute_key', 'first_seen_at', 'last_seen_at'],

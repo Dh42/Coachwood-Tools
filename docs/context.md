@@ -7,6 +7,52 @@ Labels follow the old practice:
 - **from docs:** taken from documentation
 - **assumed:** not yet checked
 
+## 2026-12-07: step 12, VC Image Manager
+
+### What changed
+Step 12 of the plan, section 5.9. Uncommitted in the working copy; Lesley commits.
+
+- **Ported unchanged:** `ImageManagerController`, `ImageAuditService`, the `ImageAudit` model, and `Product`'s image audit relations.
+- **Table:** `image_audits` in the old app's final shape.
+- **Registration:** the tool under "Amazon · Listings", with the old name and description; icon `layers`. No scheduled task (the old app has none).
+- **Page rebuilt on the new design:** the products table (now with search and column sort, as on the Listings Editors), the two summaries, the 9-slot grid with live and ours side by side, a Tutorial tour, and `resources/js/tools/image-manager.js`. It uses step 11's inline flash notices, and the grid opens under its row like the listing editor.
+- **Added in the port:**
+  - Remove asks for confirmation in a dialog first; without JavaScript it posts as before.
+  - Upload and Remove buttons are disabled once sent, so a double click can't send twice.
+- **Write guard (plan section 2, rule 3):** `SpApiClient::patchListing` already refuses a real PATCH (step 11). While writes are off, Upload, Replace and Remove run Amazon's preview and then stop. Nothing is submitted or logged, the uploaded file is deleted, and the page names what Amazon accepted.
+- **Fixes (`ImageManagerFixesTest`; 6 of its 9 tests fail on the old code, the other 3 cover a kept file, an accepted upload and registration):**
+  - found issue 22: an uploaded file Amazon won't use is deleted again. That covers the listing not loading, the preview failing or being rejected, writes being off, and a submission that isn't accepted. It is kept if the submission call itself fails, since Amazon may have taken it.
+  - 21, Image Manager part: the no-JavaScript audit pauses between products (`ImageAuditService::auditAll`, through `Sleep`, so the test needn't wait). The `SpApiClient` part stays open: `amazon:probe` and the history grab rely on seeing a 429 themselves.
+- **Import:** `legacy:import-image-manager` mirrors `image_audits` with IDs. `compare:image-manager` hashes it and the page's figures. It also counts the image files the old app's accepted submissions point at and how many are on this app's disk.
+- **Tokens:** `--image-backdrop` (white in every theme) in `tokens.css`, since only that file may hold colours.
+
+### Test status
+- 859 pass on SQLite and on MariaDB 10.11 (a scratch container, since removed), and on a clean-copy CI replay. Pint is clean and `npm run build` is OK.
+- **Carried over:** all 24 old tests (`ImageManagerTest` 14, `ImageAuditServiceTest` 10). `ImageManagerTest` turns writes on in setup, with a comment, as in steps 9 to 11.
+- **New:** 11 tests in `ImageManagerFixesTest` (9) and `ImportImageManagerTest` (2).
+
+### Verified
+- **Real data (verified on the local copy of the old database):**
+  - The import copied 104 audits; a second run changed nothing, and `compare:image-manager` matched all 3 sections. `compare:listings` still matches.
+  - The old database has no image submissions in `listing_edits` at all. No image was ever uploaded through the old tool, so no live Amazon URL depends on a file in the old app's storage.
+- **Page (verified in headless Chrome with real input):** run on the imported data, with step 11's stand-in SP-API, which now also serves a made-up image.
+  - **Table:** search narrows the table and says so, and "Not Ours" sorts.
+  - **Grid:** the arrow opens the 9 slots under the row and updates the URL; the live images load, and the occupied slots have Remove.
+  - **Remove:** the confirmation dialog names the slot, and Cancel sends nothing.
+  - **Upload:** a made-up file uploaded to Main is validated, and the notice says nothing was sent. 0 real PATCHes reached the stand-in, and no file was left in `storage/app/public`.
+  - **Tour and audit:** the tour starts, and Audit Images shows progress.
+  - **Layout:** no sideways scroll at 390 or 1440 px, and no script errors.
+- **Assumed:**
+  - The real PATCH works unchanged once writes are on.
+  - Amazon can fetch the image from this app's public URL. That needs `APP_URL` and `storage:link` on the server (a deploy action already).
+  - The old app's storage path for the cutover copy is `/var/www/vhosts/tools.biosteel.com/httpdocs/storage/app/public`. Check it before running the rsync in the README.
+
+### Open questions
+None. Found issue 21's `SpApiClient` part is still open, as noted.
+
+### Next step
+Lesley deploys and tests the page, then runs `legacy:import-image-manager` and `compare:image-manager` on the server. Then step 13, Combined Shipping Refund.
+
 ## 2026-12-06: step 11, VC and SC Listings Editors
 
 ### What changed

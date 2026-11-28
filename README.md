@@ -289,6 +289,17 @@ Ported from the old app (plan section 5.8). Two tools with separate permissions,
 - **One-off:** `listings:repair-double-encoded-audited-attributes` repaired audit rows the old app wrote double-encoded. The import brings the repaired rows across.
 - **Settings:** the SP-API vendor and seller settings from step 2 (`SP_API_*`).
 
+### VC Image Manager (`/tools/vc-image-manager`, `tool.vc-image-manager`)
+
+Ported from the old app (plan section 5.9), in "Amazon · Listings". Vendor Central only. Script: `resources/js/tools/image-manager.js`.
+
+- **Table:** every active VC product with its latest image audit: slots not ours, slots not live, and when it was checked. Search and column sort. Products with slots not ours, or submitted but not live, are also listed above the table.
+- **Grid:** a title or arrow loads the product's 9 image slots (Main and Other 1 to 8): what's live on Amazon beside our last accepted submission, with a Live, Not live or Not ours status. Status is worked out live, by comparing our last accepted `listing_edits` row for the slot's attribute with Amazon's listing data (`ImageAuditService::computeSlotStatuses`). FRNT, SIDE and BACK can't be reached through Amazon's API.
+- **Upload, Replace, Remove:** an upload is stored on the public disk (`storage/app/public/vc-image-manager/<ASIN>/`) so Amazon can fetch it by URL. Amazon validates the change (`VALIDATION_PREVIEW`); only a clean preview is followed by the real PATCH, and every submission is logged in `listing_edits` (shown in the VC Listings Editor's history). A file Amazon won't use is deleted again: preview rejected, not accepted, or writes off (found issue 22). Remove asks for confirmation first.
+- **Writes:** the PATCH refuses while `TOOLS_EXTERNAL_WRITES` is off (`SpApiClient::patchListing`). The page says so; the preview still runs, and nothing is submitted, logged or kept.
+- **Audit Images:** one Listings Items read per product, in batches of 5 with the table updating as it goes. There's no scheduled run. The no-JavaScript fallback pauses between products like the batches (found issue 21).
+- **Settings:** the SP-API vendor settings, and `APP_URL`, which the uploaded images' public URLs are built from. `php artisan storage:link` (a deploy action) must have run.
+
 ### CDQ Listing Quality Report (`/tools/cdq-report`, `tool.cdq-report`)
 
 Ported from the old app (plan section 5.5). Our own content quality score (0 to 100, deduction based) for every active Vendor Central ASIN. Reads only from Amazon.
@@ -455,6 +466,22 @@ sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:listings
 ```
 
 The eight VC and SC tables are copied exactly, in one transaction: edits, audits and column settings with their IDs (`App\Legacy\ListingsImporter`, through `TableMirror`), and the two attribute catalogs on their `attribute_key`. The old app wins, so audits this app's daily run added are replaced. Edits and audits point at users and products, so run `legacy:import-platform` and `legacy:import-products` first. The comparison hashes all eight tables and each page's figures from the latest audits: listings audited, failed fetches, A+ statuses, contribution matches and drifts, open issues, the last full audit, edits by status and the columns in force. Either app's daily audit (08:00 UTC in the old app, 08:30 here) changes these, so run it right after the import. It needs to run again at cutover, especially for `listing_edits` (plan section 6).
+
+### `legacy:import-image-manager` and `compare:image-manager`
+
+```bash
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-image-manager --dry-run
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan legacy:import-image-manager
+sudo -u "$(stat -c %U .)" /opt/plesk/php/8.4/bin/php artisan compare:image-manager
+```
+
+`image_audits` is copied exactly, IDs included; the old app wins. The image submissions are in `listing_edits`, which `legacy:import-listings` copies, so run that (and `legacy:import-products`) first. The comparison hashes `image_audits` and the page's figures from the latest audits. It also checks that every image file the old app's accepted submissions point at is on this app's disk ("Image files on disk here"). On 2026-11-24 there were none: no image had ever been submitted through the old tool.
+
+**Image files at cutover** (plan section 5.9, "Files"). Amazon was given each uploaded image as a public URL on the old hostname, and those URLs are never rewritten. So copy the files across before `tools.biosteel.com` points here, and run the comparison again. Check the old app's path first; this assumes the usual Plesk layout:
+
+```bash
+sudo rsync -a --chown="$(stat -c %U:%G .)" /var/www/vhosts/tools.biosteel.com/httpdocs/storage/app/public/vc-image-manager/ storage/app/public/vc-image-manager/
+```
 
 ## One-time commands
 

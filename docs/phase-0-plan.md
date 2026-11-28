@@ -21,7 +21,7 @@ Sources: `docs/build-spec.md`, `docs/decisions.md`, the old code at `~/PhpstormP
 | 9 | ASP Tracker, Canadian Protein and BioSteel | Shopify bulk operations | 33 (2 changed on purpose; see the step 9 context entry) |
 | 10 | Team Sponsorship and Team Sponsorship Stats | Shopify draft orders, invoice emails, Klaviyo | 58 (55 ported, 4 of them changed on purpose; the 3 registration-migration tests replaced; see the step 10 context entry) |
 | 11 | VC and SC Listings Editors | Amazon listing submissions | 101 (all ported; 1 assertion changed for the new markup, 2 setups turn writes on; see the step 11 context entry) |
-| 12 | VC Image Manager | Amazon image submissions | 24 |
+| 12 | VC Image Manager | Amazon image submissions | 24 (all ported; 1 setup turns writes on; see the step 12 context entry) |
 | 13 | Combined Shipping Refund | Shopify refunds (money), Klaviyo | 95 |
 | 14 | Cutover rehearsal: final sync, comparisons, gate | No | – |
 

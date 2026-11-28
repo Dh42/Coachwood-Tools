@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 /**
  * The Vendor Central (.ca) product list. Read-only in Phase 0: copied from
  * the old app by `legacy:import-products`. Ported from the old app; its
- * relations to Price Monitor and image audits come back with those tools.
+ * relations to Price Monitor come back with that tool.
  */
 #[Fillable(['asin', 'sku', 'title', 'type', 'list_price', 'cost', 'cogs', 'active'])]
 class Product extends Model
@@ -49,5 +49,15 @@ class Product extends Model
     public function latestListingAudit(): HasOne
     {
         return $this->hasOne(ListingAudit::class)->latestOfMany('checked_at');
+    }
+
+    public function imageAudits(): HasMany
+    {
+        return $this->hasMany(ImageAudit::class);
+    }
+
+    public function latestImageAudit(): HasOne
+    {
+        return $this->hasOne(ImageAudit::class)->latestOfMany('checked_at');
     }
 }
